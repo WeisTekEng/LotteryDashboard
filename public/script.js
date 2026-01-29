@@ -98,6 +98,18 @@ function updateCardHTML(miner) {
             </select>
         </div>` : '';
 
+    // Auto-tune selector for Bitaxe
+    const autoTuneSelector = miner.source === 'http' ? `
+        <div style="margin-bottom: 0.5rem;">
+            <label style="font-size: 0.75rem; color: #94a3b8; margin-right: 0.5rem;">Auto-Tune:</label>
+            <select onchange="updateAutoTune('${miner.ip}', this.value)" style="background: rgba(15, 23, 42, 0.8); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 3px 6px; font-size: 0.8rem; cursor: pointer;">
+                <option value="off">Off</option>
+                <option value="conservative">Conservative</option>
+                <option value="aggressive">Aggressive ⚠️</option>
+            </select>
+            <span style="font-size: 0.7rem; color: #ef4444; margin-left: 0.5rem;">⚠️ May damage hardware</span>
+        </div>` : '';
+
     return `
                 <div class="card-header">
                     <div style="flex-grow: 1; min-width: 0;">
@@ -115,6 +127,7 @@ function updateCardHTML(miner) {
                     </div>
                 </div>
                 ${coinSelector}
+                ${autoTuneSelector}
                 <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                     <div style="font-size: 0.8rem; color: #94a3b8;">Pool: <span style="color: #f8fafc;">${miner.pool || 'Unknown'}</span> ${miner.usingFallback ? '<span style="color: #ef4444; font-weight: bold; font-size: 0.7rem;">(Fallback)</span>' : ''}</div>
                     ${miner.address ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">Addr: <span style="color: #f8fafc; font-family: monospace;">...${miner.address.split('.')[0].slice(-8)}</span></div>` : ''}
@@ -399,6 +412,44 @@ async function updateMinerCoin(ip, coin) {
     } catch (err) {
         console.error('Failed to update miner coin:', err);
         alert('Failed to update coin setting');
+    }
+}
+
+// Update auto-tune setting
+async function updateAutoTune(ip, mode) {
+    if (mode !== 'off') {
+        const confirmed = confirm(
+            '⚠️ WARNING: AUTO-TUNE OVERCLOCK ⚠️\n\n' +
+            'Enabling auto-tune will automatically adjust voltage and frequency based on temperature.\n\n' +
+            'RISKS:\n' +
+            '• May cause hardware damage or failure\n' +
+            '• May void warranty\n' +
+            '• May cause system instability\n' +
+            '• Use at your own risk\n\n' +
+            `Mode: ${mode.toUpperCase()}\n\n` +
+            'Do you accept these risks and wish to continue?'
+        );
+
+        if (!confirmed) {
+            // Reset dropdown to "off"
+            event.target.value = 'off';
+            return;
+        }
+    }
+
+    try {
+        await fetch(`/miners/${ip}/metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ autoTune: mode })
+        });
+        console.log(`Auto-tune ${mode} for ${ip}`);
+        if (mode !== 'off') {
+            alert(`Auto-tune enabled in ${mode} mode. Monitor temperatures closely!`);
+        }
+    } catch (err) {
+        console.error('Failed to update auto-tune:', err);
+        alert('Failed to update auto-tune setting');
     }
 }
 

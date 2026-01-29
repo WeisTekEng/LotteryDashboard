@@ -18,6 +18,37 @@ app.use(express.json());
 
 const miners = {};
 
+// Auto-Tune State Management
+const autoTuneStates = new Map(); // ip -> { enabled, mode, lastAdjustment, tempHistory, currentVoltage, currentFreq }
+
+// Auto-Tune Configuration
+const AUTOTUNE_CONFIG = {
+  conservative: {
+    minVoltage: 1150,
+    maxVoltage: 1250,
+    minFreq: 450,
+    maxFreq: 575,
+    voltageStep: 10,
+    freqStep: 25,
+    adjustInterval: 60000, // 60 seconds
+    tempTarget: 62,
+    tempWarning: 67,
+    tempDanger: 72
+  },
+  aggressive: {
+    minVoltage: 1150,
+    maxVoltage: 1300,
+    minFreq: 450,
+    maxFreq: 650,
+    voltageStep: 15,
+    freqStep: 25,
+    adjustInterval: 30000, // 30 seconds
+    tempTarget: 65,
+    tempWarning: 70,
+    tempDanger: 73
+  }
+};
+
 // UDP Listener
 udpSocket.on('error', (err) => {
   console.log(`UDP error:\n${err.stack}`);
@@ -296,18 +327,35 @@ app.post('/miners/add', (req, res) => {
 
 app.post('/miners/:ip/metadata', (req, res) => {
   const { ip } = req.params;
-  const { coin, fallbackCoin } = req.body; // Expect 'BTC' or 'BCH' or others
+  const { coin, fallbackCoin, autoTune } = req.body;
 
   if (!httpMiners.has(ip)) {
     return res.status(404).json({ error: 'Miner not found' });
   }
 
   const current = httpMiners.get(ip);
-  // Handle legacy string format if present (migration)
   const data = typeof current === 'string' ? { name: current, coin: 'BTC' } : current;
 
   if (coin) data.coin = coin;
-  if (fallbackCoin !== undefined) data.fallbackCoin = fallbackCoin || undefined; // Remove if empty
+  if (fallbackCoin !== undefined) data.fallbackCoin = fallbackCoin || undefined;
+
+  // Handle auto-tune enable/disable
+  if (autoTune !== undefined) {
+    if (autoTune === 'off') {
+      autoTuneStates.delete(ip);
+      console.log(`[AutoTune] ${ip}: Disabled`);
+    } else if (autoTune === 'conservative' || autoTune === 'aggressive') {
+      autoTuneStates.set(ip, {
+        enabled: true,
+        mode: autoTune,
+        lastAdjustment: 0,
+        tempHistory: [],
+        currentVoltage: null,
+        currentFreq: null
+      });
+      console.log(`[AutoTune] ${ip}: Enabled (${autoTune} mode)`);
+    }
+  }
 
   httpMiners.set(ip, data);
   saveMiners();
@@ -419,10 +467,92 @@ async function pollHttpMiner(ip) {
   }
 }
 
+// Auto-Tune Controller
+async function runAutoTune(ip) {
+  const state = autoTuneStates.get(ip);
+  if (!state || !state.enabled) return;
+
+  const config = AUTOTUNE_CONFIG[state.mode];
+  const now = Date.now();
+
+  // Rate limiting
+  if (now - state.lastAdjustment < config.adjustInterval) return;
+
+  try {
+    const response = await fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) {
+      console.log(`[AutoTune] ${ip}: Failed to fetch data, disabling`);
+      state.enabled = false;
+      return;
+    }
+
+    const data = await response.json();
+    const temp = parseFloat(data.temp);
+
+    state.tempHistory.push(temp);
+    if (state.tempHistory.length > 5) state.tempHistory.shift();
+
+    const avgTemp = state.tempHistory.reduce((a, b) => a + b, 0) / state.tempHistory.length;
+
+    if (!state.currentVoltage) state.currentVoltage = data.coreVoltage || config.minVoltage;
+    if (!state.currentFreq) state.currentFreq = data.frequency || config.minFreq;
+
+    let newVoltage = state.currentVoltage;
+    let newFreq = state.currentFreq;
+    let action = 'maintain';
+
+    // Emergency
+    if (temp >= 75) {
+      newVoltage = config.minVoltage;
+      newFreq = config.minFreq;
+      action = 'EMERGENCY';
+    }
+    else if (avgTemp >= config.tempDanger) {
+      newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep * 2);
+      newFreq = Math.max(config.minFreq, newFreq - config.freqStep * 2);
+      action = 'aggressive_decrease';
+    }
+    else if (avgTemp >= config.tempWarning) {
+      newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+      newFreq = Math.max(config.minFreq, newFreq - config.freqStep);
+      action = 'decrease';
+    }
+    else if (avgTemp < config.tempTarget - 3) {
+      newVoltage = Math.min(config.maxVoltage, newVoltage + config.voltageStep);
+      newFreq = Math.min(config.maxFreq, newFreq + config.freqStep);
+      action = 'increase';
+    }
+
+    if (newVoltage !== state.currentVoltage || newFreq !== state.currentFreq) {
+      const adjustResponse = await fetch(`http://${ip}/api/system`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coreVoltage: newVoltage, frequency: newFreq })
+      });
+
+      if (adjustResponse.ok) {
+        console.log(`[AutoTune] ${ip}: ${action} - ${temp.toFixed(1)}°C -> V:${newVoltage}mV F:${newFreq}MHz`);
+        state.currentVoltage = newVoltage;
+        state.currentFreq = newFreq;
+        state.lastAdjustment = now;
+      }
+    }
+  } catch (e) {
+    console.error(`[AutoTune] ${ip}:`, e.message);
+  }
+}
+
 // Poll HTTP miners every 5 seconds
 setInterval(() => {
   httpMiners.forEach((name, ip) => pollHttpMiner(ip));
 }, 5000);
+
+// Run auto-tune every 10 seconds
+setInterval(() => {
+  autoTuneStates.forEach((state, ip) => {
+    if (state.enabled) runAutoTune(ip);
+  });
+}, 10000);
 
 const os = require('os');
 
