@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   app:
-    image: LotteryMinerDashboard-linux
+    image: lotteryminerdashboard
     build: .
     restart: unless-stopped
     network_mode: "host"
