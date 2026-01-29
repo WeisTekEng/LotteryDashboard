@@ -72,22 +72,21 @@ class AutoTuneEngine {
             const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < config.minInputVolts || inputVolts > config.maxInputVolts);
             const isPowerTooHigh = power > config.maxWatts;
 
-            const isFaulty = hasApiFault || isFallbackFault || isVrTooHot || isInputVoltsOutOfRange || isPowerTooHigh;
+            const isCriticalFault = hasApiFault || isFallbackFault || isInputVoltsOutOfRange;
+            const isSoftFault = isVrTooHot || isPowerTooHigh;
 
-            if (isFaulty) {
+            if (isCriticalFault) {
                 state.faultCounter = (state.faultCounter || 0) + 1;
                 const reasons = [];
                 if (hasApiFault) reasons.push(`API_FAULT(${data.power_fault})`);
                 if (isFallbackFault) reasons.push(`FALLBACK_FAULT(${hashrate.toFixed(0)}H/${power.toFixed(1)}W)`);
-                if (isVrTooHot) reasons.push(`VR_HOT(${vrTemp}C)`);
                 if (isInputVoltsOutOfRange) reasons.push(`VOLTAGE_OUT_OF_RANGE(${inputVolts}mV)`);
-                if (isPowerTooHigh) reasons.push(`POWER_LIMIT_EXCEEDED(${power}W)`);
 
                 if (state.faultCounter >= 2 && !state.restarting && now > state.stabilizationUntil) {
                     const targetVoltage = state.lastGoodVoltage || config.minVoltage;
                     const targetFreq = state.lastGoodFreq || config.minFreq;
 
-                    console.warn(`[AutoTune] ${ip}: POWER FAULT CONFIRMED! Reason: ${reasons.join(', ')}. Reverting to ${state.lastGoodVoltage ? 'last known stable' : 'safe limits'} (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
+                    console.warn(`[AutoTune] ${ip}: CRITICAL FAULT CONFIRMED! Reason: ${reasons.join(', ')}. Reverting to ${state.lastGoodVoltage ? 'last known stable' : 'safe limits'} (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
 
                     this.applySettings(ip, targetVoltage, targetFreq, true);
                     state.currentVoltage = targetVoltage;
@@ -99,7 +98,7 @@ class AutoTuneEngine {
                     StorageService.saveAutoTuneState(this.autoTuneStates);
                     return;
                 } else if (!state.restarting) {
-                    console.log(`[AutoTune] ${ip}: Potential fault detected (${reasons.join(', ')}). Verifying in next cycle...`);
+                    console.log(`[AutoTune] ${ip}: Potential critical fault detected (${reasons.join(', ')}). Verifying in next cycle...`);
                 }
             } else {
                 state.faultCounter = 0;
@@ -108,6 +107,20 @@ class AutoTuneEngine {
             let newVoltage = state.currentVoltage;
             let newFreq = state.currentFreq;
             let action = 'maintain';
+
+            // Handle Soft Faults (Immediate Throttling instead of Restart)
+            if (isSoftFault && !state.restarting && now > state.stabilizationUntil) {
+                const softReasons = [];
+                if (isVrTooHot) softReasons.push(`VR_HOT(${vrTemp}C)`);
+                if (isPowerTooHigh) softReasons.push(`POWER_LIMIT(${power}W)`);
+
+                newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep * 2);
+                newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                action = isVrTooHot ? 'VR_TEMP_THROTTLE' : 'POWER_LIMIT_THROTTLE';
+
+                console.warn(`[AutoTune] ${ip}: SOFT FAULT DETECTED! Reason: ${softReasons.join(', ')}. Throttling to ${newVoltage}mV/${newFreq}MHz...`);
+                state.stableCycleCount = 0;
+            }
             const isStabilizing = now < state.stabilizationUntil;
 
             if (state.restarting && now >= state.stabilizationUntil) {

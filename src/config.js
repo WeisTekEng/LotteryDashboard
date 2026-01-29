@@ -59,7 +59,7 @@ const DEFAULT_CONFIG = {
             maxVrTemp: 86,
             minInputVolts: 4800,
             maxInputVolts: 5600,
-            maxWatts: 45
+            maxWatts: 50
         }
     }
 };
