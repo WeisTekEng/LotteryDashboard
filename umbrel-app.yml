@@ -1,11 +1,11 @@
 manifestVersion: 1
-id: nerdminer-dashboard
+id: LotteryMinerDashboard
 category: finance
-name: NerdMiner Dashboard
+name: LotteryMiner Dashboard
 version: "1.0.0"
-tagline: Monitor your NerdMiner fleet in real-time
+tagline: Monitor your LotteryMiner fleet in real-time
 description: >-
-  A lightweight, real-time dashboard for your NerdMiners.
+  A lightweight, real-time dashboard for your LotteryMiners.
   Features include:
   - Auto-discovery of miners via UDP
   - Real-time Hashrate & Temperature

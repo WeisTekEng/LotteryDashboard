@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   app:
-    image: nerdminer-dashboard-windows
+    image: LotteryMinerDashboard-windows
     build: .
     restart: unless-stopped
     ports:
