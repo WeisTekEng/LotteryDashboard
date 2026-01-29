@@ -43,8 +43,8 @@ const DEFAULT_CONFIG = {
         },
         aggressive: {
             minVoltage: 1150,
-            maxVoltage: 1400,
-            minFreq: 450,
+            maxVoltage: 1380,
+            minFreq: 675,
             maxFreq: 1200,
             voltageStep: 15,
             freqStep: 10,
