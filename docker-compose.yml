@@ -7,6 +7,6 @@ services:
     network_mode: "host"
     ports:
       - "3000:3000/tcp"
-      - "3333:3333/udp"
+      - "33333:33333/udp"
     volumes:
       - /home/umbrel/umbrel/app-data/dashboard-data/data:/app/data
