@@ -40,7 +40,8 @@ The Auto-Tune engine is an autonomous feedback system designed to find the "swee
 
 ### Safety & Self-Healing
 - **Emergency Cooling**: If a miner hits 75°C+, the engine immediately drops both frequency and voltage to the absolute minimum until the hardware recovers.
-- **Power Fault Detection**: If the miner's API reports a power fault or the hashrate drops to zero while energy is still being consumed, the engine will automatically reset the settings to safe defaults and trigger a remote restart.
+- **Smart Power Fault Recovery**: If the engine detects a power fault, it will attempt to revert the miner to its **last known stable configuration** rather than safe minimums, ensuring you don't lose all your tuning progress after a transient glitch.
+- **Power Fault Detection**: If the miner's API reports a critical power fault or zero hashrate during consumption, the engine triggers an automatic remote restart.
 - **Stabilization Periods**: After any adjustment, the engine enters a "Stabilization" window to prevent "chasing" transient spikes, ensuring a steady and reliable hash rate.
 *   **Live Server Logs**: Real-time streaming of server-side adjustments and status updates directly on the dashboard.
 *   **Multi-Coin Support**: Track Bitcoin (BTC) and Bitcoin Cash (BCH) network stats simultaneously.

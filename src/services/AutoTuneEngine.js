@@ -75,10 +75,14 @@ class AutoTuneEngine {
             const isFaulty = hasApiFault || isFallbackFault || isVrTooHot || isInputVoltsOutOfRange || isPowerTooHigh;
 
             if (isFaulty && !state.restarting && now > state.stabilizationUntil) {
-                console.warn(`[AutoTune] ${ip}: POWER FAULT DETECTED! Resetting to safe limits and restarting...`);
-                this.applySettings(ip, config.minVoltage, config.minFreq, true);
-                state.currentVoltage = config.minVoltage;
-                state.currentFreq = config.minFreq;
+                const targetVoltage = state.lastGoodVoltage || config.minVoltage;
+                const targetFreq = state.lastGoodFreq || config.minFreq;
+
+                console.warn(`[AutoTune] ${ip}: POWER FAULT DETECTED! Reverting to ${state.lastGoodVoltage ? 'last known stable' : 'safe limits'} (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
+
+                this.applySettings(ip, targetVoltage, targetFreq, true);
+                state.currentVoltage = targetVoltage;
+                state.currentFreq = targetFreq;
                 state.stabilizationUntil = now + 120000;
                 state.restarting = true;
                 state.lastAdjustment = now;
@@ -159,6 +163,17 @@ class AutoTuneEngine {
 
             if (action === 'maintain' || action === 'stabilizing') {
                 state.stableCycleCount = (state.stableCycleCount || 0) + 1;
+
+                // Track "Last Known Good" version
+                // Require at least 20 stable cycles (approx 3.5 mins) and very low error
+                if (state.stableCycleCount >= 20 && smoothErrorRate < 0.01) {
+                    if (state.lastGoodVoltage !== state.currentVoltage || state.lastGoodFreq !== state.currentFreq) {
+                        state.lastGoodVoltage = state.currentVoltage;
+                        state.lastGoodFreq = state.currentFreq;
+                        console.log(`[AutoTune] ${ip}: Recorded new 'Last Known Good' state: ${state.lastGoodVoltage}mV/${state.lastGoodFreq}MHz`);
+                        StorageService.saveAutoTuneState(this.autoTuneStates);
+                    }
+                }
             }
 
             if (isStabilizing && !['EMERGENCY_COOLING', 'decrease_temp_warning', 'decrease_temp_aggressive'].includes(action)) {

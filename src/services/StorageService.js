@@ -59,6 +59,8 @@ class StorageService {
                         errorHistory: item.errorHistory || [],
                         stableCycleCount: item.stableCycleCount || 0,
                         lastAction: item.lastAction || 'maintain',
+                        lastGoodVoltage: item.lastGoodVoltage || null,
+                        lastGoodFreq: item.lastGoodFreq || null,
                         stabilizationUntil: 0,
                         restarting: false
                     });
@@ -83,7 +85,9 @@ class StorageService {
                 lastErrorCount: state.lastErrorCount,
                 errorHistory: state.errorHistory || [],
                 stableCycleCount: state.stableCycleCount || 0,
-                lastAction: state.lastAction || 'maintain'
+                lastAction: state.lastAction || 'maintain',
+                lastGoodVoltage: state.lastGoodVoltage || null,
+                lastGoodFreq: state.lastGoodFreq || null
             }));
             fs.writeFileSync(CONFIG.FILES.AUTOTUNE, JSON.stringify(data, null, 2));
         } catch (e) {
