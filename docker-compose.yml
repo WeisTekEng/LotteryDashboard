@@ -3,8 +3,9 @@ version: '3.7'
 services:
   app:
     image: lotteryminerdashboard
-    build: .
     restart: unless-stopped
-    network_mode: "host"
+    ports:
+      - "3000:3000/tcp"
+      - "3333:3333/udp"
     volumes:
       - /home/umbrel/umbrel/app-data/dashboard-data/data:/app/data
