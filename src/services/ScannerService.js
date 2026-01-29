@@ -39,8 +39,8 @@ class ScannerService {
     }
 
     async runNetworkScan() {
-        console.log('[Scanner] Starting subnet scan...');
         const subnets = this.getLocalSubnets();
+        console.log(`[Scanner] Starting scan on subnets: ${subnets.join(', ')}`);
         for (const subnet of subnets) {
             const promises = [];
             for (let i = 1; i < 255; i++) {

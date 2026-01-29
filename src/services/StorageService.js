@@ -1,5 +1,12 @@
 const fs = require('fs');
+const path = require('path');
 const CONFIG = require('../config');
+
+// Ensure data directory exists
+const dataDir = path.dirname(CONFIG.FILES.MINERS);
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
 class StorageService {
     static loadMiners() {

@@ -105,6 +105,38 @@ This app is ready for Umbrel.
 7.  navigate to `http://localhost:3000` to access the dashboard
 8.  you can expose this via tailscail if you want to access it from other devices
 
+### Persistent Configuration (Editing Settings)
+To ensure your settings are saved when the container restarts and to allow manual editing of configuration files:
+1.  In Portainer, during container creation (or under "Duplicate/Edit"), go to the **Volumes** tab.
+2.  Click **+ map additional volume**.
+3.  **Container path**: `/app/data`
+4.  **Host path** (or Volume): 
+    - Select **Bind** (important for easy file access).
+    - Enter a path for your data on the host, for example: `/home/umbrel/lottery-data`.
+5.  This allows you to edit settings directly from your host filesystem. Settings will persist exactly in that folder even if the container is deleted.
+
+### Advanced Configuration (config.json)
+You can override any setting in the dashboard (ports, scan intervals, auto-tune profiles) by creating a `config.json` file in your mapped `data` folder.
+
+**Example `config.json`:**
+```json
+{
+  "PORTS": {
+    "HTTP": 8080
+  },
+  "LIMITS": {
+    "SCAN_INTERVAL": 300000
+  },
+  "AUTOTUNE": {
+    "aggressive": {
+      "maxVoltage": 1450,
+      "maxFreq": 1300
+    }
+  }
+}
+```
+*Note: You only need to include the settings you want to change. Others will keep their default values.*
+
 ## Tips / Donations
 
 Found this useful? Tips are never required but appreciated!
