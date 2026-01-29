@@ -74,20 +74,35 @@ class AutoTuneEngine {
 
             const isFaulty = hasApiFault || isFallbackFault || isVrTooHot || isInputVoltsOutOfRange || isPowerTooHigh;
 
-            if (isFaulty && !state.restarting && now > state.stabilizationUntil) {
-                const targetVoltage = state.lastGoodVoltage || config.minVoltage;
-                const targetFreq = state.lastGoodFreq || config.minFreq;
+            if (isFaulty) {
+                state.faultCounter = (state.faultCounter || 0) + 1;
+                const reasons = [];
+                if (hasApiFault) reasons.push(`API_FAULT(${data.power_fault})`);
+                if (isFallbackFault) reasons.push(`FALLBACK_FAULT(${hashrate.toFixed(0)}H/${power.toFixed(1)}W)`);
+                if (isVrTooHot) reasons.push(`VR_HOT(${vrTemp}C)`);
+                if (isInputVoltsOutOfRange) reasons.push(`VOLTAGE_OUT_OF_RANGE(${inputVolts}mV)`);
+                if (isPowerTooHigh) reasons.push(`POWER_LIMIT_EXCEEDED(${power}W)`);
 
-                console.warn(`[AutoTune] ${ip}: POWER FAULT DETECTED! Reverting to ${state.lastGoodVoltage ? 'last known stable' : 'safe limits'} (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
+                if (state.faultCounter >= 2 && !state.restarting && now > state.stabilizationUntil) {
+                    const targetVoltage = state.lastGoodVoltage || config.minVoltage;
+                    const targetFreq = state.lastGoodFreq || config.minFreq;
 
-                this.applySettings(ip, targetVoltage, targetFreq, true);
-                state.currentVoltage = targetVoltage;
-                state.currentFreq = targetFreq;
-                state.stabilizationUntil = now + 120000;
-                state.restarting = true;
-                state.lastAdjustment = now;
-                StorageService.saveAutoTuneState(this.autoTuneStates);
-                return;
+                    console.warn(`[AutoTune] ${ip}: POWER FAULT CONFIRMED! Reason: ${reasons.join(', ')}. Reverting to ${state.lastGoodVoltage ? 'last known stable' : 'safe limits'} (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
+
+                    this.applySettings(ip, targetVoltage, targetFreq, true);
+                    state.currentVoltage = targetVoltage;
+                    state.currentFreq = targetFreq;
+                    state.stabilizationUntil = now + 120000;
+                    state.restarting = true;
+                    state.lastAdjustment = now;
+                    state.faultCounter = 0;
+                    StorageService.saveAutoTuneState(this.autoTuneStates);
+                    return;
+                } else if (!state.restarting) {
+                    console.log(`[AutoTune] ${ip}: Potential fault detected (${reasons.join(', ')}). Verifying in next cycle...`);
+                }
+            } else {
+                state.faultCounter = 0;
             }
 
             let newVoltage = state.currentVoltage;
