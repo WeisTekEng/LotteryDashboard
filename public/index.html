@@ -10,399 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* CSS Tokens */
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent-color: #10b981;
-            --accent-glow: rgba(16, 185, 129, 0.3);
-            --danger-color: #ef4444;
-        }
-
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3rem;
-        }
-
-        h1 {
-            font-weight: 800;
-            font-size: 2.5rem;
-            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .miner-card {
-            background-color: var(--card-bg);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .miner-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-            border-color: rgba(16, 185, 129, 0.2);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-
-        .miner-id {
-            font-weight: 600;
-            font-size: 1.125rem;
-            color: var(--text-primary);
-            word-break: break-all;
-        }
-
-        .miner-ip {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background-color: rgba(16, 185, 129, 0.1);
-            color: var(--accent-color);
-        }
-
-        .status-dot {
-            width: 0.5rem;
-            height: 0.5rem;
-            background-color: var(--accent-color);
-            border-radius: 50%;
-            margin-right: 0.5rem;
-            box-shadow: 0 0 10px var(--accent-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-value {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .hashrate {
-            color: var(--accent-color);
-            font-size: 1.5rem;
-        }
-
-        .temp-high {
-            color: var(--danger-color);
-        }
-
-        /* Donation Banner */
-        .donation-banner {
-            margin-top: 3rem;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 1rem;
-            padding: 2rem;
-            backdrop-filter: blur(10px);
-        }
-
-        .donation-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .donation-text h3 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .donation-text p {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-
-        .donation-info {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-
-        .btc-address-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .btc-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .btc-address {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            color: var(--accent-color);
-            font-size: 0.875rem;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            word-break: break-all;
-            max-width: 400px;
-        }
-
-        .copy-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--accent-color);
-            color: #0f172a;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .copy-btn:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-        }
-
-        .copy-btn:active {
-            transform: translateY(0);
-        }
-
-        @media (max-width: 768px) {
-            .donation-content {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .donation-info {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            .btc-address {
-                max-width: 100%;
-            }
-        }
-
-        /* Modal Overlay */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
-
-        /* Modal Content */
-        .modal-content {
-            background: rgba(30, 41, 59, 0.95);
-            width: 100%;
-            max-width: 500px;
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
-            overflow: hidden;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-
-        /* Modal Header */
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #f8fafc;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 1.5rem;
-            padding: 0.5rem;
-            transition: color 0.2s;
-        }
-
-        .modal-close:hover {
-            color: #f8fafc;
-        }
-
-        /* Modal Body */
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #94a3b8;
-            font-size: 0.875rem;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.5rem;
-            color: #f1f5f9;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            background: rgba(15, 23, 42, 0.8);
-        }
-
-        /* Modal Footer */
-        .modal-footer {
-            padding: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-    </style>
+    <link rel="stylesheet" href="css/main.css?v=1.1">
 </head>
 
 <body>
@@ -420,18 +28,45 @@
                     </svg>
                 </button>
                 <div id="nav-menu"
-                    style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.5rem; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; width: 200px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); z-index: 50;">
+                    style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.5rem; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; width: 220px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); z-index: 100;">
                     <button onclick="switchView('stats')" class="nav-item"
                         style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         📊 Dashboard Stats
                     </button>
                     <button onclick="switchView('miners')" class="nav-item"
-                        style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem;">
+                        style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         ⛏️ Pool / Miners
+                    </button>
+                    <button onclick="switchView('logs')" class="nav-item"
+                        style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem;">
+                        📑 Live Server Logs
                     </button>
                 </div>
             </div>
         </header>
+
+        <!-- Logs View -->
+        <section id="logs-view" style="display: none; margin-bottom: 2rem;">
+            <div class="miner-card" style="height: 600px; display: flex; flex-direction: column; padding: 0;">
+                <div class="card-header"
+                    style="padding: 1.5rem; margin-bottom: 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div>
+                        <div class="miner-id">Live Server Logs</div>
+                        <div class="miner-ip">Real-time status & adjustments</div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="clearLogs()" class="btn-secondary"
+                            style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Clear</button>
+                        <div class="status-badge">
+                            <span class="status-dot"></span> Streaming
+                        </div>
+                    </div>
+                </div>
+                <div id="log-container"
+                    style="flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 1.5rem; font-family: 'Courier New', monospace; font-size: 0.875rem; color: #f8fafc; scroll-behavior: smooth;">
+                </div>
+            </div>
+        </section>
 
         <!-- Stats View -->
         <div id="stats-view">
@@ -764,10 +399,9 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-    </script>
-    <script src="script.js"></script>
-</body>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
 </body>
 
 </html>

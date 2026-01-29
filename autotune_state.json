@@ -1,0 +1,86 @@
+[
+  {
+    "ip": "192.168.1.204",
+    "enabled": true,
+    "mode": "aggressive",
+    "currentVoltage": 1320,
+    "currentFreq": 950,
+    "lastShares": {
+      "valid": 3575,
+      "invalid": 32
+    },
+    "lastErrorCount": 1585,
+    "errorHistory": [
+      0.000454339,
+      0,
+      0,
+      0,
+      0
+    ],
+    "stableCycleCount": 55,
+    "lastAction": "maintain"
+  },
+  {
+    "ip": "192.168.1.197",
+    "enabled": true,
+    "mode": "aggressive",
+    "currentVoltage": 1400,
+    "currentFreq": 890,
+    "lastShares": {
+      "valid": 2588,
+      "invalid": 34
+    },
+    "lastErrorCount": 27684,
+    "errorHistory": [
+      0.0060975610000000005,
+      0.003389831,
+      0.004239283999999999,
+      0.0028161429999999997,
+      0.005429865000000001
+    ],
+    "stableCycleCount": 0,
+    "lastAction": "instability_throttle_freq"
+  },
+  {
+    "ip": "192.168.1.200",
+    "enabled": true,
+    "mode": "aggressive",
+    "currentVoltage": 1225,
+    "currentFreq": 890,
+    "lastShares": {
+      "valid": 2329,
+      "invalid": 25
+    },
+    "lastErrorCount": 765,
+    "errorHistory": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "stableCycleCount": 117,
+    "lastAction": "maintain"
+  },
+  {
+    "ip": "192.168.1.156",
+    "enabled": true,
+    "mode": "aggressive",
+    "currentVoltage": 1285,
+    "currentFreq": 935,
+    "lastShares": {
+      "valid": 633,
+      "invalid": 0
+    },
+    "lastErrorCount": 4329,
+    "errorHistory": [
+      0.002369668,
+      0.002285192,
+      0.001906578,
+      0.0018948370000000001,
+      0.002945508
+    ],
+    "stableCycleCount": 0,
+    "lastAction": "increase_stability_voltage"
+  }
+]
