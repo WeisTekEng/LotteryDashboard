@@ -1,4 +1,4 @@
-# LotteryMiner Dashboard
+# LotteryMiner Dashboard With AATE (Adaptive Auto-Tune Engine)
 This software is a work in progress, although I do all of my own testing on my own hardware i will not be held responsible for any damage to your or your hardware as a result of using this software.
 
 This is a local dashboard to monitor and configure your LotteryMiner fleet via UDP and REST API. It supports Bitcoin (BTC) and Bitcoin Cash (BCH) mining stats and serves as a central hub for real-time monitoring and autonomous optimization.
@@ -12,7 +12,7 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
 
 ## Key Features
 
-*   **Auto-Tune Engine**: Autonomous frequency and voltage optimization with adaptive per-unit learning.
+*   **Auto-Tune Engine**: [Bitaxe hardware only] Autonomous frequency and voltage optimization with adaptive per-unit learning.
     *   **Conservative Mode**: Safe adjustments to optimize stability and efficiency.
     *   **Aggressive Mode**: Maximizes performance (requires caution/improved cooling).
     *   **Adaptive Limits**: Automatically learns each unit's hardware capabilities and respects individual limitations.
