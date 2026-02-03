@@ -62,8 +62,8 @@ The dashboard includes a "Live Logs" page for real-time monitoring:
 
 ### Docker & Umbrel Support
 
-#### Linux / Umbrel (Recommended)
-There are a few ways to run this using docker, if you on windows user docker desktop
+#### running the docker image
+There are a few ways to run this using docker, if your on windows use docker desktop
 1.  Install docker desktop from https://www.docker.com/products/docker-desktop/ or do a google search for docker desktop
     if you don't trust links.
 2. once docker desktop is installed you can run the docker localy by running this command.
