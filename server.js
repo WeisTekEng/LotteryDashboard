@@ -148,7 +148,48 @@ app.post('/miners/:ip/metadata', (req, res) => {
   res.json({ success: true });
 });
 
-// --- Startup ---
+// Dashboard Config Management
+app.get('/api/config', (req, res) => {
+  // Return the current config but hide internal FILES paths for security/clarify
+  const { FILES, ...safeConfig } = CONFIG;
+  res.json(safeConfig);
+});
+
+app.post('/api/config', (req, res) => {
+  try {
+    const newConfig = req.body;
+
+    // Deep merge helper
+    const merge = (target, source) => {
+      for (const key in source) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          target[key] = merge(target[key] || {}, source[key]);
+        } else {
+          target[key] = source[key];
+        }
+      }
+      return target;
+    };
+
+    // Update running config (excluding internal FILES)
+    const { FILES, ...cleanOverrides } = newConfig;
+    merge(CONFIG, cleanOverrides);
+
+    // Save to data/config.json
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(__dirname, 'data', 'config.json');
+
+    // We save the full clean overrides to ensure persistence
+    fs.writeFileSync(configPath, JSON.stringify(cleanOverrides, null, 2));
+
+    console.log('[Config] Configuration updated and saved to data/config.json');
+    res.json({ success: true, restartRequired: !!newConfig.PORTS });
+  } catch (e) {
+    console.error('[Config] Failed to save config:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 minerService.startBackgroundJobs();
 scannerService.start();
 autoTuneEngine.startLoop();

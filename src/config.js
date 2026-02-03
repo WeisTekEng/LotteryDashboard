@@ -56,7 +56,7 @@ const DEFAULT_CONFIG = {
             maxErrorRate: 0.25,
             recoveryVoltage: 1150,
             recoveryFreq: 800,
-            maxVrTemp: 86,
+            maxVrTemp: 105,
             minInputVolts: 4800,
             maxInputVolts: 5600,
             maxWatts: 50

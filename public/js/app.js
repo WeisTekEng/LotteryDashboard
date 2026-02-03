@@ -24,11 +24,13 @@ function switchView(viewName) {
     const statsView = document.getElementById('stats-view');
     const minersView = document.getElementById('miners-view');
     const logsView = document.getElementById('logs-view');
+    const settingsView = document.getElementById('settings-view');
     const menu = document.getElementById('nav-menu');
 
     if (statsView) statsView.style.display = 'none';
     if (minersView) minersView.style.display = 'none';
     if (logsView) logsView.style.display = 'none';
+    if (settingsView) settingsView.style.display = 'none';
 
     if (viewName === 'stats' && statsView) {
         statsView.style.display = 'block';
@@ -43,6 +45,10 @@ function switchView(viewName) {
         if (container) {
             container.scrollTop = container.scrollHeight;
         }
+    } else if (viewName === 'settings' && settingsView) {
+        settingsView.style.display = 'block';
+        document.title = 'Dashboard Settings';
+        loadGlobalConfig();
     }
 
     if (menu) {
@@ -507,3 +513,123 @@ socket.on('init_logs', (logs) => {
 socket.on('log_entry', (log) => {
     appendLog(log);
 });
+
+// --- Global Configuration Editor ---
+let globalConfig = null;
+
+async function loadGlobalConfig() {
+    const container = document.getElementById('config-editor-cards');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/api/config');
+        if (!res.ok) throw new Error('Failed to fetch config');
+        globalConfig = await res.json();
+        renderConfigEditor(globalConfig);
+    } catch (e) {
+        container.innerHTML = `<div style="color: #ef4444;">Error loading config: ${e.message}</div>`;
+    }
+}
+
+function getUnitLabel(key) {
+    const k = key.toLowerCase();
+    if (k.includes('voltage') || k.includes('volts')) return ' (mV)';
+    if (k.includes('freq')) return ' (MHz)';
+    if (k.includes('interval') || k.includes('timeout') || k.includes('adjust')) return ' (ms)';
+    if (k.includes('temp')) return ' (°C)';
+    if (k.includes('watts')) return ' (W)';
+    if (k.includes('rate')) return ' (ratio 0-1)';
+    if (k.includes('efficiency')) return ' (J/TH)';
+    return '';
+}
+
+function renderConfigEditor(config) {
+    const container = document.getElementById('config-editor-cards');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Helper to create a setting card
+    const createCard = (title, settings, pathPrefix) => {
+        const card = document.createElement('div');
+        card.className = 'miner-card';
+        card.style.height = 'auto';
+
+        card.innerHTML = `
+            <div class="card-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 0;">
+                <div>
+                    <div class="miner-id" style="font-size: 1.1rem; color: #f8fafc;">${title}</div>
+                    <div class="miner-ip" style="font-size: 0.75rem;">${title.includes('Auto-Tune') ? 'Tuning Profile' : 'System Parameters'}</div>
+                </div>
+            </div>
+            <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                ${Object.entries(settings).map(([key, value]) => {
+            if (typeof value === 'object' && value !== null) return ''; // Skip nested here
+            const unit = getUnitLabel(key);
+            return `
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">${key}${unit}</label>
+                            <input type="${typeof value === 'number' ? 'number' : 'text'}" 
+                                   class="form-input" 
+                                   data-path="${pathPrefix}.${key}" 
+                                   value="${value}" 
+                                   style="background: rgba(0,0,0,0.2); font-size: 0.9rem; padding: 0.5rem;">
+                        </div>
+                    `;
+        }).join('')}
+            </div>
+        `;
+        return card;
+    };
+
+    container.appendChild(createCard('Dashboard Network', config.PORTS, 'PORTS'));
+    container.appendChild(createCard('Performance Limits', config.LIMITS, 'LIMITS'));
+
+    // AutoTune Profiles
+    if (config.AUTOTUNE) {
+        for (const [profile, settings] of Object.entries(config.AUTOTUNE)) {
+            const title = profile.charAt(0).toUpperCase() + profile.slice(1);
+            container.appendChild(createCard(`Auto-Tune: ${title}`, settings, `AUTOTUNE.${profile}`));
+        }
+    }
+}
+
+async function saveGlobalConfig() {
+    const inputs = document.querySelectorAll('#config-editor-cards input');
+    const newConfig = JSON.parse(JSON.stringify(globalConfig)); // Deep clone
+
+    inputs.forEach(input => {
+        const path = input.getAttribute('data-path').split('.');
+        let current = newConfig;
+        for (let i = 0; i < path.length - 1; i++) {
+            current = current[path[i]];
+        }
+        const key = path[path.length - 1];
+        const value = input.type === 'number' ? parseFloat(input.value) : input.value;
+        current[key] = value;
+    });
+
+    const btn = document.querySelector('#settings-view .btn-primary');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'Saving...';
+
+    try {
+        const res = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newConfig)
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.restartRequired ? 'Settings saved! A restart is required for port changes.' : 'Settings saved successfully!');
+            globalConfig = newConfig;
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (e) {
+        alert('Failed to save settings: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
