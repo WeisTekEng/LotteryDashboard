@@ -82,14 +82,16 @@ This app is ready for Umbrel, Although not available yet on the umbrel app store
 
 #### Method 1 (Recommended)
 1.  Install Portainer from the Umbrel app store
-2.  Once in Portainer, navigate to the environment usualy **primary** you want to run this container in, then click on **connect** then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
-3.  For docker.io images, use the repo name and tag you used when running push_release.ps1. For example `ocybress/nerdminer-dashboard-linux:r0.0.15` you can also use `ocybress/nerdminer-dashboard-linux:latest` since i will always be on the latest version, but i recommend building your own as i may be testing features on the latest version.
-4.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
-5.  in Advanced Container settings under Networking make sure Network is set to **host**.
-6.  Click "deploy the container"
-7.  Wait for the container to start
-8.  Navigate to `http://localhost:3000` to access the dashboard
-9.  You can expose this via Tailscale if you want to access it from other devices or from outside your home network, the UI 
+2.  Once in Portainer, navigate to the environment usualy named **primary** you want to run this container in, 
+3.  click on **connect** 
+4.  then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
+5.  For docker.io images, use the repo name and tag you used when running push_release.ps1. For example `ocybress/nerdminer-dashboard-linux:r0.0.15` you can also use `ocybress/nerdminer-dashboard-linux:latest` since i will always be on the latest version, but i recommend building your own as i may be testing features on the latest version.
+6.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
+7.  in Advanced Container settings under Networking make sure Network is set to **host**.
+8.  Click "deploy the container"
+9.  Wait for the container to start
+10. Navigate to `http://localhost:3000` to access the dashboard
+11. You can expose this via Tailscale if you want to access it from other devices or from outside your home network, the UI 
     is built to work with both desktop and mobile devices.
 
 ![Portainer](Images/PortainerAddContainer.PNG)
