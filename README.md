@@ -1,6 +1,9 @@
 # LotteryMiner Dashboard With an AATE (Adaptive Auto-Tuning Engine)
 This software is a work in progress, although I do all of my own testing on my own hardware i will not be held responsible for any damage to you or your hardware as a result of using this software.
 
+**Hardware Compatibility**
+This dashboard is designed to work with both Bitaxe and NerdMiner hardware, however the Auto-Tuning Engine is only compatible with Bitaxe hardware. and only tested on Bitaxe Gamma 601 devices running firmware version 2.12.0. I will add support for other Bitaxe devices such as multi Asic units either by having someone else test it for me who has the hardware or by purchasing one myself, or hardware donations are welcome if feasible. If you would like to assist in testing new hardware please contact get in contact with me at OCybress+dashboardtesting@gmail.com
+
 This is a local dashboard to monitor and configure your LotteryMiner fleet via UDP and REST API. It supports Bitcoin (BTC) and Bitcoin Cash (BCH) mining stats and serves as a central hub for real-time monitoring and autonomous optimization.
 ![Dashboard](Images/Dashboard01.PNG)
 ![Miner Dashboard](Images/MinersDashboard.PNG)
