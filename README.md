@@ -3,8 +3,8 @@ This software is a work in progress, although I do all of my own testing on my o
 
 This is a local dashboard to monitor and configure your LotteryMiner fleet via UDP and REST API. It supports Bitcoin (BTC) and Bitcoin Cash (BCH) mining stats and serves as a central hub for real-time monitoring and autonomous optimization.
 ![Dashboard](Images/Dashboard01.PNG)
-![Dashboard](Images/Dashboard02.PNG)
 ![Miner Dashboard](Images/MinersDashboard.PNG)
+![Auto Tune Dashboard](Images/AutoTuneDashboard01.PNG)
 > [!IMPORTANT]
 > **NerdMiner Users**: To use auto-discovery and remote configuration, you must flash the [LotteryMiner Custom Firmware](https://github.com/WeisTekEng/NerdMiner_v2). This firmware broadcasts the required JSON payload via UDP.
 >
@@ -29,8 +29,10 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
 
 The Auto-Tune engine is an autonomous feedback system designed to find the optimal operating point for each individual ASIC chip. Since no two chips are identical due to manufacturing variance, the engine continuously monitors telemetry and makes intelligent micro-adjustments to maximize hashrate while maintaining stability and thermal safety.
 
+**Bitaxe 601 - Gamma01 - Hashrate Increasing**
 ![Gamma01](Images/Gamma01HashIncreasing.PNG)
-![Gamma03](Images/Gamma02HashIncreasing.PNG)
+**Bitaxe 601 - Gamma02 - Hashrate Increasing**
+![Gamma02](Images/Gamma02HashIncreasing.PNG)
 
 ### Core Architecture
 

@@ -11,6 +11,14 @@ class AutoTuneEngine {
         return maxVoltage;
     }
 
+    async getUnitId(ip) {
+        const resp = await fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
+        if (!resp.ok) return;
+
+        const data = await resp.json();
+        return data.macAdder;
+    }
+
     async run(ip) {
         const state = this.autoTuneStates.get(ip);
         if (!state || !state.enabled) return;

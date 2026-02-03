@@ -190,6 +190,119 @@ app.post('/api/config', (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Get adaptive limits for a specific miner
+app.get('/api/autotune/:ip/adaptive-limits', (req, res) => {
+  const { ip } = req.params;
+  const limits = autoTuneEngine.getAdaptiveLimits(ip);
+  console.log(limits);
+  //const resp = fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
+  //if (!resp.ok) return;
+  //const data = resp.json();
+  //console.log(data);
+
+  if (!limits) {
+    return res.status(404).json({
+      error: 'Miner not found or AutoTune not enabled'
+    });
+  }
+
+  res.json({
+    ip,
+    adaptive: limits.adaptiveLimits,
+    config: limits.configLimits,
+    reduction: {
+      voltage: limits.configLimits.maxVoltage - limits.adaptiveLimits.maxVoltage,
+      frequency: limits.configLimits.maxFreq - limits.adaptiveLimits.maxFreq
+    },
+    isLimited: limits.adaptiveLimits.maxVoltage < limits.configLimits.maxVoltage ||
+      limits.adaptiveLimits.maxFreq < limits.configLimits.maxFreq
+  });
+});
+
+// Reset adaptive limits to config defaults
+app.post('/api/autotune/:ip/adaptive-limits/reset', (req, res) => {
+  const { ip } = req.params;
+  const success = autoTuneEngine.resetAdaptiveLimits(ip);
+
+  if (!success) {
+    return res.status(404).json({
+      error: 'Miner not found or AutoTune not enabled'
+    });
+  }
+
+  const limits = autoTuneEngine.getAdaptiveLimits(ip);
+  res.json({
+    message: 'Adaptive limits reset to config defaults',
+    ip,
+    limits: limits.adaptiveLimits
+  });
+});
+
+// Manually set adaptive limits
+app.put('/api/autotune/:ip/adaptive-limits', (req, res) => {
+  const { ip } = req.params;
+  const { maxVoltage, maxFreq } = req.body;
+
+  if (!maxVoltage || !maxFreq) {
+    return res.status(400).json({
+      error: 'maxVoltage and maxFreq are required'
+    });
+  }
+
+  const success = autoTuneEngine.setAdaptiveLimits(ip, maxVoltage, maxFreq);
+
+  if (!success) {
+    return res.status(400).json({
+      error: 'Invalid limits or miner not found. Check server logs for details.'
+    });
+  }
+
+  const limits = autoTuneEngine.getAdaptiveLimits(ip);
+  res.json({
+    message: 'Adaptive limits updated',
+    ip,
+    limits: limits.adaptiveLimits
+  });
+});
+
+// Get summary of all miners' adaptive limits
+app.get('/api/autotune/adaptive-limits/summary', (req, res) => {
+  const summary = [];
+
+  autoTuneEngine.autoTuneStates.forEach((state, ip) => {
+    const limits = autoTuneEngine.getAdaptiveLimits(ip);
+    //const resp = fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
+    //if (!resp.ok) return;
+    //const data = resp.json();
+    if (limits) {
+      const isLimited = limits.adaptiveLimits.maxVoltage < limits.configLimits.maxVoltage ||
+        limits.adaptiveLimits.maxFreq < limits.configLimits.maxFreq;
+
+      summary.push({
+        ip,
+        mode: state.mode,
+        currentSettings: {
+          voltage: state.currentVoltage,
+          frequency: state.currentFreq
+        },
+        adaptive: limits.adaptiveLimits,
+        config: limits.configLimits,
+        isLimited,
+        faultCount: limits.adaptiveLimits.faultHistory?.length || 0,
+        lastFault: limits.adaptiveLimits.faultHistory?.length > 0
+          ? limits.adaptiveLimits.faultHistory[limits.adaptiveLimits.faultHistory.length - 1]
+          : null
+      });
+    }
+  });
+
+  res.json({
+    totalMiners: summary.length,
+    limitedMiners: summary.filter(m => m.isLimited).length,
+    miners: summary
+  });
+});
 minerService.startBackgroundJobs();
 scannerService.start();
 autoTuneEngine.startLoop();

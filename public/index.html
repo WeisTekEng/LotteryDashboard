@@ -37,6 +37,10 @@
                         style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         ⛏️ Pool / Miners
                     </button>
+                    <button onclick="switchView('autotune')" class="nav-item"
+                        style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        🎛️ Auto-Tune Monitor
+                    </button>
                     <button onclick="switchView('logs')" class="nav-item"
                         style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         📑 Live Server Logs
@@ -90,6 +94,74 @@
                 <div style="color: #94a3b8;">Loading configuration...</div>
             </div>
         </section>
+
+        <!-- AutoTune Monitor View -->
+        <section id="autotune-view" style="display: none; margin-bottom: 2rem;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; position: sticky; top: 0; background: #0f172a; padding: 1rem 0; z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; color: white; margin: 0;">Auto-Tune Monitor</h2>
+                    <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">
+                        Adaptive limits, fault history, and performance tracking
+                        <span id="autotune-refresh-indicator"
+                            style="margin-left: 1rem; color: #10b981; font-size: 0.75rem;">
+                            <span
+                                style="display: inline-block; width: 6px; height: 6px; background: #10b981; border-radius: 50%; margin-right: 4px; animation: pulse 2s infinite;"></span>
+                            Auto-refresh: <span id="autotune-countdown">10</span>s
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
+                <div class="miner-card" style="padding: 1.5rem;">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Miners</span>
+                        <span class="stat-value" id="autotune-total-miners">-</span>
+                    </div>
+                </div>
+                <div class="miner-card" style="padding: 1.5rem;">
+                    <div class="stat-item">
+                        <span class="stat-label">Limited Miners</span>
+                        <span class="stat-value" id="autotune-limited-miners" style="color: #facc15;">-</span>
+                    </div>
+                </div>
+                <div class="miner-card" style="padding: 1.5rem;">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Faults (24h)</span>
+                        <span class="stat-value" id="autotune-total-faults" style="color: #ef4444;">-</span>
+                    </div>
+                </div>
+                <div class="miner-card" style="padding: 1.5rem;">
+                    <div class="stat-item">
+                        <span class="stat-label">Avg Performance</span>
+                        <span class="stat-value" id="autotune-avg-performance" style="color: #10b981;">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Miners Grid -->
+            <div id="autotune-miners-grid" class="grid">
+                <div style="grid-column: 1 / -1; color: #94a3b8; text-align: center; padding: 2rem;">
+                    Loading Auto-Tune data...
+                </div>
+            </div>
+        </section>
+
+        <style>
+            @keyframes pulse {
+
+                0%,
+                100% {
+                    opacity: 1;
+                }
+
+                50% {
+                    opacity: 0.5;
+                }
+            }
+        </style>
 
         <!-- Stats View -->
         <div id="stats-view">
