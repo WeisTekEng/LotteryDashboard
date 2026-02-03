@@ -198,15 +198,16 @@ You can override any setting in the dashboard (ports, scan intervals, auto-tune 
    ```javascript
    // If you know a unit has a weak 5V rail at 4.85V
    autoTuneEngine.setAdaptiveLimits('192.168.1.197', 1300, 1100);
-   ```
-
+   
 #### Troubleshooting
 
 **Unit Won't Reach Expected Frequency**
-1. Check if adaptive limits lower than config: `getAdaptiveLimits(ip)`
+1. Check if adaptive limits lower than config: `getAdaptiveLimits(ip)` while on the Auto-Tune Monitor page 
+   click the $ icon to see any recorded faults.
 2. Review fault history to identify root cause
 3. Fix hardware issue if present (PSU, cooling, etc.)
-4. Reset adaptive limits: `resetAdaptiveLimits(ip)`
+4. Reset adaptive limits: `resetAdaptiveLimits(ip)` while on the Auto-Tune Monitor page click the reset icon to 
+   reset the adaptive limits.
 
 **Limits Too Conservative**
 1. Review last fault in history
