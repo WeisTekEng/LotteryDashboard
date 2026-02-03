@@ -194,7 +194,7 @@ You can override any setting in the dashboard (ports, scan intervals, auto-tune 
    autoTuneEngine.resetAdaptiveLimits('192.168.1.197');
    ```
 
-3. **Set Manual Limits for Known Issues**
+3. **Set Manual Limits for Known Issues, this will be integrated later into the Auto-Tune Monitor page**
    ```javascript
    // If you know a unit has a weak 5V rail at 4.85V
    autoTuneEngine.setAdaptiveLimits('192.168.1.197', 1300, 1100);
