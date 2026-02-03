@@ -2,7 +2,9 @@
 This software is a work in progress, although I do all of my own testing on my own hardware i will not be held responsible for any damage to your or your hardware as a result of using this software.
 
 This is a local dashboard to monitor and configure your LotteryMiner fleet via UDP and REST API. It supports Bitcoin (BTC) and Bitcoin Cash (BCH) mining stats and serves as a central hub for real-time monitoring and autonomous optimization.
-
+![Dashboard](Images/Dashboard01.PNG)
+![Dashboard](Images/Dashboard02.PNG)
+![Miner Dashboard](Images/MinersDashboard.PNG)
 > [!IMPORTANT]
 > **NerdMiner Users**: To use auto-discovery and remote configuration, you must flash the [LotteryMiner Custom Firmware](https://github.com/WeisTekEng/NerdMiner_v2). This firmware broadcasts the required JSON payload via UDP.
 >
@@ -26,6 +28,9 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
 ## Auto-Tune Engine Deep Dive
 
 The Auto-Tune engine is an autonomous feedback system designed to find the optimal operating point for each individual ASIC chip. Since no two chips are identical due to manufacturing variance, the engine continuously monitors telemetry and makes intelligent micro-adjustments to maximize hashrate while maintaining stability and thermal safety.
+
+![Gamma01](Images/Gamma01HashIncreasing.PNG)
+![Gamma03](Images/Gamma02HashIncreasing.PNG)
 
 ### Core Architecture
 
@@ -143,22 +148,12 @@ The engine uses a strict priority system to handle multiple conditions:
    - Optimal state defined as ≥80% of adaptive max frequency
 
 #### Example Log Output
-
-```log
-[AutoTune] 192.168.1.197: Potential critical fault detected (API_FAULT(Overvoltage)). Verifying (Cycle 1/3)...
-[AutoTune] 192.168.1.197: Potential critical fault detected (API_FAULT(Overvoltage)). Verifying (Cycle 2/3)...
-[AutoTune] 192.168.1.197: LEARNED FROM FAULT! Reducing limits: V=1380mV→1360mV, F=1200MHz→1170MHz (Fault was at 1380mV/1200MHz)
-[AutoTune] 192.168.1.197: CRITICAL FAULT CONFIRMED! Reason: API_FAULT(Overvoltage). Reverting to safe baseline (1200mV/750MHz) and restarting...
-```
-
-Later, during normal operation:
-```log
-[AutoTune] 192.168.1.197: 1200mV/750MHz -> 1200mV/765MHz (Action: increase_freq, Temp: 62°C, Margin: 9.0°C, Error: 0.01%, Stable: 12)
-[AutoTune] 192.168.1.197: 1350mV/1165MHz -> 1350mV/1170MHz (Action: increase_freq, Temp: 68°C, Margin: 3.0°C, Error: 0.01%, Stable: 15)
-[AutoTune] 192.168.1.197: Recorded new optimal state: 1350mV/1170MHz (100% of adaptive max)
-```
-
-Notice the unit stabilized at exactly its adaptive maximum (1170MHz) and recognized it as optimal.
+**Auto-Tune Logs**
+![Auto-tune logs](Images/LiveLogsAutoTuningEngine.PNG)
+**Auto-Tune stabalizing**
+![Units stabalizing](Images/LiveLogsAutoTuningEngine02.PNG)
+**Auto-Tune Power fault detected, new hardware limits learned**
+![Power Fault Detected and new hardware limits learned](Images/PowerFaultConfirmedAndLearned.PNG)
 
 #### Use Cases for Adaptive Limits
 
@@ -721,5 +716,3 @@ Found this useful? Tips are never required but appreciated!
 - Confirmation: 3 consecutive fault cycles required
 
 ---
-
-<img width="1903" height="1113" alt="Dashboard" src="https://github.com/user-attachments/assets/6d91323c-5c8c-4ad9-beb9-4f27e5b845e0" />
