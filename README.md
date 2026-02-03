@@ -24,6 +24,233 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
 *   **Modular UI**: Responsive, modern interface with detailed historical hashrate charts.
 
 ---
+## Remote Configuration (Nerdminers only)
+
+To configure a miner remotely:
+1.  Ensure you are running the **latest firmware** with the REST API enabled.
+2.  On the dashboard, click the **Gear Icon** on the miner card.
+3.  A modal will appear showing the current settings.
+4.  Update your Pool, Wallet, etc., and click **Save Changes**.
+5.  The miner will save settings to NVS and restart automatically.
+
+## Live Server Logs
+
+The dashboard includes a "Live Logs" page for real-time monitoring:
+-   **Auto-Tune Adjustments**: See exactly when the engine increases or throttles a miner
+-   **Adaptive Limit Learning**: Watch as units learn their individual capabilities
+-   **Fault Detection**: Real-time visibility into fault confirmation and recovery
+-   **Discovery Events**: Track when new devices are found on your network
+-   **Network Status**: Real-time feedback on API communication and stats fetching
+
+## Installation and use
+
+### Non-Docker Setup run straight from the repo on your computer.
+1.  **Clone this repos master branch**
+    ```bash
+    git clone https://github.com/WeisTekEng/LotteryDashboard.git
+    ```
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Start the Server**:
+    ```bash
+    node server.js
+    ```
+3.  **Access Dashboard**:
+    Open your browser and navigate to `http://localhost:3000`.
+
+### Docker & Umbrel Support
+
+#### Linux / Umbrel (Recommended)
+There are a few ways to run this using docker, if you on windows user docker desktop
+1.  Install docker desktop from https://www.docker.com/products/docker-desktop/ or do a google search for docker desktop
+    if you don't trust links.
+2. once docker desktop is installed you can run the docker localy by running this command.
+    ```bash
+    docker compose up -d --build
+    ```
+    *Uses `network_mode: "host"` for proper UDP broadcast reception.*
+
+    *Uses port mapping. Access at http://localhost:3000*
+
+**Note:** UDP broadcasts from miners may not reach the container on Windows due to Docker's networking limitations. For full functionality, deploy on Linux/Umbrel.
+
+### Umbrel
+This app is ready for Umbrel, Although not available yet on the umbrel app store, you can use portainer to install and run it.
+**There are two ways to install this using portainer**
+
+#### Method 1 (Recommended)
+1.  Install Portainer from the Umbrel app store
+2.  Once in Portainer, navigate to the environment usualy **primary** you want to run this container in, then click on **connect** then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
+3.  For docker.io images, use the repo name and tag you used when running push_release.ps1. For example `ocybress/nerdminer-dashboard-linux:r0.0.15` you can also use `ocybress/nerdminer-dashboard-linux:latest` since i will always be on the latest version, but i recommend building your own as i may be testing features on the latest version.
+4.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
+5.  in Advanced Container settings under Networking make sure Network is set to **host**.
+6.  Click "deploy the container"
+7.  Wait for the container to start
+8.  Navigate to `http://localhost:3000` to access the dashboard
+9.  You can expose this via Tailscale if you want to access it from other devices or from outside your home network, the UI 
+    is built to work with both desktop and mobile devices.
+
+![Portainer](Images/PortainerAddContainer.PNG)
+
+#### Method 2 (Advanced)
+**This is a work in progress as umbrel is a pain to get volumes or custom directorys working in my experience, but i will get there. I'm probably missing something obvious.**
+
+### Persistent Configuration (Editing Settings)
+**From my testing the configurations etc appear to be persistent even without volumes, I will confirm this. If you want to be sure or want to edit the config files manually, you can use the following method:**
+This "should" work but im having issues with umbrel and the container not saving data to a specified location even if i 
+use a bind mount.
+To ensure your settings are saved when the container restarts and to allow manual editing of configuration files:
+1.  In Portainer, during container creation (or under "Duplicate/Edit"), go to the **Volumes** tab.
+2.  Click **+ map additional volume**.
+3.  **Container path**: `/app/data`
+4.  **Host path** (or Volume): 
+    - Select **Bind** (important for easy file access).
+    - Enter a path for your data on the host, for example: `/home/umbrel/lottery-data`.
+5.  This allows you to edit settings directly from your host filesystem. Settings will persist exactly in that folder even if the container is deleted.
+
+### Advanced Configuration (config.json)
+
+You can override any setting in the dashboard (ports, scan intervals, auto-tune profiles) by either creating a `config.json` file in your mapped `data` folder. or navigating to the Settings page and editing the settings there.
+
+**Example `config.json`:**
+```json
+{
+  "PORTS": {
+    "HTTP": 8080
+  },
+  "LIMITS": {
+    "SCAN_INTERVAL": 300000
+  },
+  "AUTOTUNE": {
+    "conservative": {
+      "tempTarget": 63,
+      "maxErrorRate": 0.03,
+      "freqStep": 15
+    },
+    "aggressive": {
+      "maxVoltage": 1450,
+      "maxFreq": 1300,
+      "tempTarget": 72
+    }
+  }
+}
+```
+*Note: You only need to include the settings you want to change. Others will keep their default values.*
+
+### Auto-Tune Engine Best Practices
+
+#### Auto-Tune Engine Deployment
+
+1. **Start Fresh for Major Updates**
+   ```bash
+   # Delete existing autotune state to let units re-learn
+   rm data/autotune_state.json
+   ```
+   For best results set each miner to a baseline freq / core voltage,
+   such as 600 / 1150
+
+2. **Monitor Learning Phase** (first 24-48 hours)
+   - Units will test their limits
+   - Some may fault a few times while learning
+   - This is expected and normal
+   - After learning, faults should be rare
+
+3. **Use Conservative Mode Initially**
+   - Verify stability before switching to aggressive
+   - Ensure cooling is adequate
+   - Monitor temperatures closely
+
+4. **Upgrade Cooling for Aggressive Mode**
+   - Add or upgrade fans
+   - Ensure proper airflow
+   - Consider heatsink upgrades
+   - Monitor VRM temperatures
+
+#### Maintenance (Fault reviews have been intigrated into the Auto-Tune Monitor page.)
+
+1. **Review Fault History Weekly**
+   ```javascript
+   const limits = autoTuneEngine.getAdaptiveLimits('192.168.1.197');
+   console.log(limits.adaptiveLimits.faultHistory);
+   ```
+   
+   If you see:
+   - **Same fault repeatedly**: Hardware issue, needs repair
+   - **Faults during high ambient temp**: Cooling insufficient
+   - **Random scattered faults**: Normal learning, no action needed
+
+2. **Reset Limits After Hardware Changes**
+   ```javascript
+   // After PSU replacement, cooling upgrade, etc.
+   autoTuneEngine.resetAdaptiveLimits('192.168.1.197');
+   ```
+
+3. **Set Manual Limits for Known Issues**
+   ```javascript
+   // If you know a unit has a weak 5V rail at 4.85V
+   autoTuneEngine.setAdaptiveLimits('192.168.1.197', 1300, 1100);
+   ```
+
+#### Troubleshooting
+
+**Unit Won't Reach Expected Frequency**
+1. Check if adaptive limits lower than config: `getAdaptiveLimits(ip)`
+2. Review fault history to identify root cause
+3. Fix hardware issue if present (PSU, cooling, etc.)
+4. Reset adaptive limits: `resetAdaptiveLimits(ip)`
+
+**Limits Too Conservative**
+1. Review last fault in history
+2. If it was transient (power spike, thermal spike), manually increase limits
+3. Try small increments: +20mV, +30MHz at a time
+4. Monitor for 1 hour before further increases
+
+**Constant Faults Despite Adaptive Limits**
+1. Likely hardware failure (PSU, bad cap, thermal paste)
+2. Check power supply voltage under load
+3. Verify adequate cooling
+4. Consider unit needs repair/replacement
+
+**Limits Not Being Learned**
+1. Verify unit is actually faulting (look for "CRITICAL FAULT CONFIRMED")
+2. Check fault counter reaching 3
+3. If unit is stable, it won't learn (no faults = no learning)
+4. This is normal for high-quality units
+
+### Testing Recommendations
+
+1. **Baseline Test** (before enabling AutoTune)
+   - Run all units at fixed, conservative settings
+   - Record baseline hashrate, temperature, power
+   - Verify all units are healthy
+
+2. **AutoTune Deployment**
+   - Enable conservative mode for all units
+   - Monitor for 24 hours
+   - Check for frequency increases and stable operation
+
+3. **Performance Verification**
+   - Compare to baseline
+   - Verify 10-20% hashrate improvement (typical)
+   - Confirm stable error rates (< 1%)
+   - Check temperatures within targets
+
+4. **Fault Response Test**
+   - Intentionally trigger fault (disconnect power briefly)
+   - Verify fault detection, learning, and recovery
+   - Confirm adaptive limits set correctly
+
+5. **Long-Term Monitoring**
+   - Track for 7 days minimum
+   - Watch for oscillation between settings
+   - Ensure temperature margins maintained
+   - Verify adaptive limits are reasonable
+
+---
+
+---
 
 ## Auto-Tune Engine Deep Dive
 
@@ -468,217 +695,6 @@ Response: {
   "miners": [...]
 }
 ```
-
-### Best Practices
-
-#### Deployment
-
-1. **Start Fresh for Major Updates**
-   ```bash
-   # Delete existing autotune state to let units re-learn
-   rm data/autotune_state.json
-   ```
-   For best results set each miner to a baseline freq / core voltage,
-   such as 600 / 1150
-
-2. **Monitor Learning Phase** (first 24-48 hours)
-   - Units will test their limits
-   - Some may fault a few times while learning
-   - This is expected and normal
-   - After learning, faults should be rare
-
-3. **Use Conservative Mode Initially**
-   - Verify stability before switching to aggressive
-   - Ensure cooling is adequate
-   - Monitor temperatures closely
-
-4. **Upgrade Cooling for Aggressive Mode**
-   - Add or upgrade fans
-   - Ensure proper airflow
-   - Consider heatsink upgrades
-   - Monitor VRM temperatures
-
-#### Maintenance
-
-1. **Review Fault History Weekly**
-   ```javascript
-   const limits = autoTuneEngine.getAdaptiveLimits('192.168.1.197');
-   console.log(limits.adaptiveLimits.faultHistory);
-   ```
-   
-   If you see:
-   - **Same fault repeatedly**: Hardware issue, needs repair
-   - **Faults during high ambient temp**: Cooling insufficient
-   - **Random scattered faults**: Normal learning, no action needed
-
-2. **Reset Limits After Hardware Changes**
-   ```javascript
-   // After PSU replacement, cooling upgrade, etc.
-   autoTuneEngine.resetAdaptiveLimits('192.168.1.197');
-   ```
-
-3. **Set Manual Limits for Known Issues**
-   ```javascript
-   // If you know a unit has a weak 5V rail at 4.85V
-   autoTuneEngine.setAdaptiveLimits('192.168.1.197', 1300, 1100);
-   ```
-
-#### Troubleshooting
-
-**Unit Won't Reach Expected Frequency**
-1. Check if adaptive limits lower than config: `getAdaptiveLimits(ip)`
-2. Review fault history to identify root cause
-3. Fix hardware issue if present (PSU, cooling, etc.)
-4. Reset adaptive limits: `resetAdaptiveLimits(ip)`
-
-**Limits Too Conservative**
-1. Review last fault in history
-2. If it was transient (power spike, thermal spike), manually increase limits
-3. Try small increments: +20mV, +30MHz at a time
-4. Monitor for 1 hour before further increases
-
-**Constant Faults Despite Adaptive Limits**
-1. Likely hardware failure (PSU, bad cap, thermal paste)
-2. Check power supply voltage under load
-3. Verify adequate cooling
-4. Consider unit needs repair/replacement
-
-**Limits Not Being Learned**
-1. Verify unit is actually faulting (look for "CRITICAL FAULT CONFIRMED")
-2. Check fault counter reaching 3
-3. If unit is stable, it won't learn (no faults = no learning)
-4. This is normal for high-quality units
-
-### Testing Recommendations
-
-1. **Baseline Test** (before enabling AutoTune)
-   - Run all units at fixed, conservative settings
-   - Record baseline hashrate, temperature, power
-   - Verify all units are healthy
-
-2. **AutoTune Deployment**
-   - Enable conservative mode for all units
-   - Monitor for 24 hours
-   - Check for frequency increases and stable operation
-
-3. **Performance Verification**
-   - Compare to baseline
-   - Verify 10-20% hashrate improvement (typical)
-   - Confirm stable error rates (< 1%)
-   - Check temperatures within targets
-
-4. **Fault Response Test**
-   - Intentionally trigger fault (disconnect power briefly)
-   - Verify fault detection, learning, and recovery
-   - Confirm adaptive limits set correctly
-
-5. **Long-Term Monitoring**
-   - Track for 7 days minimum
-   - Watch for oscillation between settings
-   - Ensure temperature margins maintained
-   - Verify adaptive limits are reasonable
-
----
-
-## Remote Configuration
-
-To configure a miner remotely:
-1.  Ensure you are running the **latest firmware** with the REST API enabled.
-2.  On the dashboard, click the **Gear Icon** on the miner card.
-3.  A modal will appear showing the current settings.
-4.  Update your Pool, Wallet, etc., and click **Save Changes**.
-5.  The miner will save settings to NVS and restart automatically.
-
-## Live Server Logs
-
-The dashboard includes a "Live Logs" page for real-time monitoring:
--   **Auto-Tune Adjustments**: See exactly when the engine increases or throttles a miner
--   **Adaptive Limit Learning**: Watch as units learn their individual capabilities
--   **Fault Detection**: Real-time visibility into fault confirmation and recovery
--   **Discovery Events**: Track when new devices are found on your network
--   **Network Status**: Real-time feedback on API communication and stats fetching
-
-## Installation
-
-### Non-Docker Setup
-1.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
-2.  **Start the Server**:
-    ```bash
-    node server.js
-    ```
-3.  **Access Dashboard**:
-    Open your browser and navigate to `http://localhost:3000`.
-
-### Docker & Umbrel Support
-
-#### Linux / Umbrel (Recommended)
-```bash
-docker compose up -d --build
-```
-*Uses `network_mode: "host"` for proper UDP broadcast reception.*
-
-#### Windows (Testing/Development)
-```bash
-docker compose -f docker-compose.windows.yml up -d --build
-```
-*Uses port mapping. Access at http://localhost:3000*
-
-**Note:** UDP broadcasts from miners may not reach the container on Windows due to Docker's networking limitations. For full functionality, deploy on Linux/Umbrel.
-
-### Umbrel
-This app is ready for Umbrel.
-1.  Install Portainer from the Umbrel app store
-2.  Once in Portainer, navigate to the environment you want to add this to, then click on "Add Container"
-3.  For docker.io image, use `ocybress/nerdminer-dashboard-linux:r0.0.8`
-4.  For the ports, add `3000` TCP, and `33333` UDP
-5.  Click "deploy the container"
-6.  Wait for the container to start
-7.  Navigate to `http://localhost:3000` to access the dashboard
-8.  You can expose this via Tailscale if you want to access it from other devices
-
-### Persistent Configuration (Editing Settings)
-
-To ensure your settings are saved when the container restarts and to allow manual editing of configuration files:
-1.  In Portainer, during container creation (or under "Duplicate/Edit"), go to the **Volumes** tab.
-2.  Click **+ map additional volume**.
-3.  **Container path**: `/app/data`
-4.  **Host path** (or Volume): 
-    - Select **Bind** (important for easy file access).
-    - Enter a path for your data on the host, for example: `/home/umbrel/lottery-data`.
-5.  This allows you to edit settings directly from your host filesystem. Settings will persist exactly in that folder even if the container is deleted.
-
-### Advanced Configuration (config.json)
-
-You can override any setting in the dashboard (ports, scan intervals, auto-tune profiles) by creating a `config.json` file in your mapped `data` folder.
-
-**Example `config.json`:**
-```json
-{
-  "PORTS": {
-    "HTTP": 8080
-  },
-  "LIMITS": {
-    "SCAN_INTERVAL": 300000
-  },
-  "AUTOTUNE": {
-    "conservative": {
-      "tempTarget": 63,
-      "maxErrorRate": 0.03,
-      "freqStep": 15
-    },
-    "aggressive": {
-      "maxVoltage": 1450,
-      "maxFreq": 1300,
-      "tempTarget": 72
-    }
-  }
-}
-```
-*Note: You only need to include the settings you want to change. Others will keep their default values.*
-
 ---
 
 ## Tips / Donations
