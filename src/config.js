@@ -53,7 +53,7 @@ const DEFAULT_CONFIG = {
             tempWarning: 72,
             tempDanger: 73,
             targetEfficiency: null,
-            maxErrorRate: 0.25,
+            maxErrorRate: 0.0075, // Ratio 1-0 0.75% = 0.0075
             recoveryVoltage: 1150,
             recoveryFreq: 800,
             maxVrTemp: 105,

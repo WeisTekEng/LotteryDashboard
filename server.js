@@ -289,10 +289,11 @@ app.get('/api/autotune/adaptive-limits/summary', (req, res) => {
         adaptive: limits.adaptiveLimits,
         config: limits.configLimits,
         isLimited,
-        faultCount: limits.adaptiveLimits.faultHistory?.length || 0,
-        lastFault: limits.adaptiveLimits.faultHistory?.length > 0
-          ? limits.adaptiveLimits.faultHistory[limits.adaptiveLimits.faultHistory.length - 1]
-          : null
+        faultCount: limits.faultHistory?.length || 0,
+        lastFault: limits.faultHistory?.length > 0
+          ? limits.faultHistory[limits.faultHistory.length - 1]
+          : null,
+        faultHistory: limits.faultHistory || []
       });
     }
   });

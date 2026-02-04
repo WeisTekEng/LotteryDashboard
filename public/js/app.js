@@ -722,7 +722,7 @@ function renderAutoTuneView() {
 
     autoTuneData.miners.forEach(miner => {
         if (miner.faultCount > 0) {
-            const recentFaults = (miner.adaptive.faultHistory || []).filter(f => f.timestamp > dayAgo);
+            const recentFaults = (miner.faultHistory || []).filter(f => f.timestamp > dayAgo);
             totalRecentFaults += recentFaults.length;
         }
 
@@ -768,7 +768,7 @@ function createAutoTuneMinerCard(miner) {
 
     // Recent faults (last 24h)
     const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
-    const recentFaults = (miner.adaptive.faultHistory || []).filter(f => f.timestamp > dayAgo);
+    const recentFaults = (miner.faultHistory || []).filter(f => f.timestamp > dayAgo);
 
     return `
         <div class="miner-card">

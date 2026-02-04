@@ -21,6 +21,9 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
     *   **Conservative Mode**: Safe adjustments to optimize stability and efficiency.
     *   **Aggressive Mode**: Maximizes performance (requires caution/improved cooling).
     *   **Adaptive Limits**: Automatically learns each unit's hardware capabilities and respects individual limitations.
+    *   **Smart Tuning**:
+        *   **Adaptive Step Sizing**: Takes large frequency steps (e.g., +40MHz) when far from limits, and precision steps (e.g., +10MHz) when close.
+        *   **PLL Offset Learning**: Learns the specific voltage offset required by your silicon and maintains that efficiency advantage (or necessary compensation) as it scales.
 *   **Live Server Logs**: Real-time streaming of server-side adjustments and status updates directly on the dashboard.
 *   **Multi-Coin Support**: Track Bitcoin (BTC) and Bitcoin Cash (BCH) network stats simultaneously.
 *   **Solo Mining Odds**: Integrated "Lottery" stats calculation for both BTC and BCH, including potential rewards and daily win probability.
@@ -522,60 +525,46 @@ The engine uses a strict priority system to handle multiple conditions:
 The current engine represents significant improvements over traditional auto-tuning approaches:
 
 #### 1. Frequency-First Philosophy
-**Old Approach**: "If unstable, add voltage until stable, then try frequency"
-- Result: Voltage creep, frequency stagnation, units stuck at max voltage/low frequency
-
-**New Approach**: "Always prefer frequency adjustments, use voltage surgically"
+"Always prefer frequency adjustments, use voltage surgically"
 - Result: High frequency operation, voltage only as needed
 - Key Insight: Frequency affects power/heat/stability; voltage mainly affects stability
 - Therefore: Use frequency as primary lever, voltage as fine-tuning
 
 #### 2. Nuanced Stability Response
-**Before**:
-- Instability → Add voltage (+10mV)
-- Still unstable → Add more voltage (+10mV)
-- Repeat until voltage maxes out
-- Only then reduce frequency
-
-**Now**:
 - High instability → Reduce frequency first (if headroom exists)
 - Only add voltage if frequency already low
 - Different severities get different responses
 - No one-way voltage ratchet effect
 
 #### 3. Relaxed Frequency Increase Logic
-**Before**:
-- Required 10 stable cycles after ANY throttling
-- Temperature warnings constantly reset counter
-- Frequency rarely increased
-
-**Now**:
 - Reduced cooldown to 5 cycles after throttling, 2 cycles normally
 - Temperature margin consideration (won't increase if margin < 3°C)
 - Scaled increase rate (1.5× faster if margin > 5°C)
 - Simultaneous freq increase + voltage decrease when very stable
 
 #### 4. Smart Fault Recovery
-**Before**:
-- Reverted to "last known good" state
-- But that state might have caused the problem
-- Created fault loops
-
-**Now**:
 - Always revert to guaranteed-safe baseline
 - Learn from fault and set adaptive limits
 - Gradual climb from known-safe state
 - Never attempt failed settings again
 
-#### 5. Better "Last Known Good" Tracking
-**Before**:
-- Recorded any stable state after 20 cycles
-- Included low-frequency states as "good"
-
-**Now**:
+### 5. "Last Known Good" Tracking
 - Only records truly optimal states (30 cycles, < 1% error, ≥80% of adaptive max freq)
 - Ensures "good" state is actually high-performance
 - Considers adaptive limits, not just config limits
+
+#### 6. Smart Acceleration (Adaptive Steps)
+**Before**:
+- Fixed 10MHz steps regardless of potential
+- Slow to reach high frequencies (e.g., 600 -> 1200MHz took hours)
+
+**Now**:
+- Variable step sizing based on distance to target
+- **4x Speed** (+40MHz) when >100MHz from limit
+- **2x Speed** (+20MHz) when >50MHz from limit
+- **Precision** (+10MHz) when approaching limit
+- Result: Reaches optimal range 4-5x faster while maintaining safety
+
 
 ### Configuration Recommendations
 

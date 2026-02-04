@@ -1,22 +1,259 @@
 const CONFIG = require('../config');
 const StorageService = require('./StorageService');
 
+// PLL Voltage Curves - Conservative community-tested values with safety margins
+const PLL_VOLTAGE_CURVES = {
+    'BM1397': {
+        // NerdMiner, early Bitaxe Ultra - 5V devices
+        400: 1120,
+        450: 1150,
+        500: 1160,
+        525: 1170,
+        550: 1180,
+        575: 1200,
+        600: 1220,
+        625: 1250,
+        650: 1275,
+        675: 1300,
+        700: 1325,
+        725: 1350,
+        750: 1375,
+        775: 1400,
+        800: 1425,
+        825: 1450,
+        850: 1475,
+        875: 1500,
+        900: 1525,
+        925: 1550,
+        950: 1575,
+        975: 1600,
+        1000: 1625
+    },
+    'BM1366': {
+        // Bitaxe Supra - 5V device
+        // More conservative curve
+        350: 1120,
+        400: 1150,
+        450: 1160,
+        500: 1180,
+        550: 1200,
+        600: 1230,
+        650: 1260,
+        700: 1300,
+        750: 1340,
+        800: 1380,
+        850: 1420,
+        900: 1460,
+        950: 1500,
+        1000: 1540,
+        1050: 1580,
+        1100: 1620,
+        1150: 1660,
+        1200: 1700
+    },
+
+    'BM1368': {
+        // Bitaxe Hex (BM1368) – slightly stronger than BM1366
+        350: 1120,
+        400: 1150,
+        450: 1160,
+        500: 1170,
+        600: 1200,
+        700: 1240,
+        800: 1280,
+        900: 1330,
+        1000: 1380,
+        1100: 1430,
+        1200: 1480,
+        1300: 1530,
+        1400: 1580,
+        1500: 1630,
+        1600: 1680
+    },
+    'BM1370': {
+        400: 900,
+        450: 967,
+        500: 1033,
+        550: 1100,
+        600: 1122,
+        650: 1144,
+        700: 1166,
+        750: 1188,
+        800: 1210,
+        850: 1231,
+        900: 1253,
+        950: 1275,
+        1000: 1297,
+        1050: 1317,
+        1100: 1337,
+        1150: 1357,
+        1200: 1377,
+        1250: 1397,
+        1300: 1417,
+    }
+};
+
+// Device-specific voltage limits based on power architecture
+const DEVICE_VOLTAGE_LIMITS = {
+    // 5V Input Devices (USB-powered, standard Bitaxe)
+    '5V': {
+        minVoltage: 1100,
+        maxVoltage: 1400,  // Safe limit for 5V rail
+        maxFreq: 1200,
+        safetyMargin: 20   // mV to add to PLL recommendation
+    },
+    // 12V Input Devices (NerdqAxe++, Bitaxe GT 800, etc.)
+    '12V': {
+        minVoltage: 1100,
+        maxVoltage: 1400,  // Can push higher with 12V input
+        maxFreq: 1200,
+        safetyMargin: 30   // Slightly higher safety margin for 12V
+    },
+    // Bitaxe Gamma 601 (5V but higher limits than standard)
+    'Gamma601': {
+        minVoltage: 1100,
+        maxVoltage: 1400,  // Higher than standard 5V
+        maxFreq: 1200,
+        safetyMargin: 25
+    }
+};
+
 class AutoTuneEngine {
     constructor(autoTuneStates) {
         this.autoTuneStates = autoTuneStates || new Map();
     }
 
-    getFreqVoltageCap(freq, maxVoltage) {
-        if (freq < 500) return 1200;
-        return maxVoltage;
+    /**
+     * Detect ASIC chip model from miner data
+     */
+    detectASICModel(minerData) {
+        const chipInfo = (minerData.chipInfo || '').toLowerCase();
+        const model = (minerData.ASICModel || '').toLowerCase();
+        const deviceName = (minerData.deviceModel || minerData.miner || '').toLowerCase();
+
+        // Explicit chip model detection
+        if (chipInfo.includes('1397') || model.includes('1397')) return 'BM1397';
+        if (chipInfo.includes('1366') || model.includes('1366')) return 'BM1366';
+        if (chipInfo.includes('1368') || model.includes('1368')) return 'BM1368';
+        if (chipInfo.includes('1370') || model.includes('1370')) return 'BM1370';
+
+        // Device-based detection (Gamma uses BM1370)
+        if (deviceName.includes('gamma')) return 'BM1370';
+        if (deviceName.includes('hex')) return 'BM1368';
+
+        return null; // Unknown chip
     }
 
-    async getUnitId(ip) {
-        const resp = await fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
-        if (!resp.ok) return;
+    /**
+     * Detect device type and voltage limits from miner data
+     */
+    detectDeviceType(minerData) {
+        const deviceName = (minerData.deviceModel || minerData.miner || '').toLowerCase();
+        const version = (minerData.version || '').toLowerCase();
 
-        const data = await resp.json();
-        return data.macAdder;
+        // NerdqAxe++ detection (12V)
+        if (deviceName.includes('nerdqaxe') || deviceName.includes('nerdq')) {
+            return '12V';
+        }
+
+        // Bitaxe Gamma detection
+        // Gamma 601 = 5V enhanced (1500mV max)
+        // Gamma 901/903 = higher power, may need different limits
+        if (deviceName.includes('gamma')) {
+            if (deviceName.includes('601')) {
+                return 'Gamma601';  // 5V, 1500mV max
+            }
+            // Check if it's a higher-power Gamma variant
+            if (deviceName.includes('901') || deviceName.includes('903')) {
+                return 'Gamma601';  // For now, treat same as 601
+            }
+            return 'Gamma601';  // Default for any Gamma
+        }
+
+        // Bitaxe GT/Hex detection
+        if (deviceName.includes('hex')) {
+            return '5V';  // Hex is standard 5V
+        }
+
+        // GT variants may be 12V
+        if (deviceName.includes('gt')) {
+            return '12V';
+        }
+
+        // Standard Bitaxe models (5V)
+        if (deviceName.includes('ultra') || deviceName.includes('supra')) {
+            return '5V';
+        }
+
+        // Check for explicit voltage in device data
+        if (minerData.inputVoltage) {
+            const voltage = parseFloat(minerData.inputVoltage);
+            return voltage > 8 ? '12V' : '5V';
+        }
+
+        // Default to 5V (safer)
+        return '5V';
+    }
+
+    /**
+     * Get recommended voltage for a frequency using PLL curves
+     * Returns null if no curve available (fallback to current logic)
+     */
+    getRecommendedVoltage(freq, asicModel, deviceType) {
+        const curve = PLL_VOLTAGE_CURVES[asicModel];
+        if (!curve) return null;
+
+        const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType] || DEVICE_VOLTAGE_LIMITS['5V'];
+
+        // Find the curve points
+        const freqPoints = Object.keys(curve).map(Number).sort((a, b) => a - b);
+
+        // Linear interpolation between points
+        let recommendedV = null;
+
+        for (let i = 0; i < freqPoints.length; i++) {
+            if (freq <= freqPoints[i]) {
+                if (i === 0) {
+                    // Below first point, use first point
+                    recommendedV = curve[freqPoints[0]];
+                } else {
+                    // Interpolate between points
+                    const f1 = freqPoints[i - 1];
+                    const f2 = freqPoints[i];
+                    const v1 = curve[f1];
+                    const v2 = curve[f2];
+
+                    const ratio = (freq - f1) / (f2 - f1);
+                    recommendedV = Math.round(v1 + (v2 - v1) * ratio);
+                }
+                break;
+            }
+        }
+
+        // If above highest point, use highest point
+        if (recommendedV === null) {
+            recommendedV = curve[freqPoints[freqPoints.length - 1]];
+        }
+
+        // Add safety margin
+        recommendedV += deviceLimits.safetyMargin;
+
+        // Clamp to device limits
+        recommendedV = Math.max(deviceLimits.minVoltage, Math.min(deviceLimits.maxVoltage, recommendedV));
+
+        return recommendedV;
+    }
+
+    /**
+     * Get device-specific voltage cap (replaces simple frequency-based cap)
+     */
+    getDeviceVoltageCap(state, minerData) {
+        const deviceType = state.deviceType || this.detectDeviceType(minerData);
+        const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType] || DEVICE_VOLTAGE_LIMITS['5V'];
+
+        // Use mode-specific max voltage, but don't exceed device hardware limit
+        const config = CONFIG.AUTOTUNE[state.mode];
+        return Math.min(config.maxVoltage, deviceLimits.maxVoltage);
     }
 
     async run(ip) {
@@ -58,7 +295,7 @@ class AutoTuneEngine {
                 liveErrorRate = totalDelta > 0 ? deltaInvalid / totalDelta : 0;
             }
 
-            // Moving averages for stability
+            // Moving averages
             state.tempHistory = state.tempHistory || [];
             state.tempHistory.push(temp);
             if (state.tempHistory.length > 5) state.tempHistory.shift();
@@ -73,12 +310,25 @@ class AutoTuneEngine {
             state.currentVoltage = data.coreVoltage;
             state.currentFreq = data.frequency;
 
-            const freqVoltageCap = this.getFreqVoltageCap(state.currentFreq, config.maxVoltage);
+            // NEW: Detect ASIC model and device type (once)
+            if (!state.asicModel) {
+                state.asicModel = this.detectASICModel(data);
+                console.log(`[AutoTune] ${ip}: Detected ASIC model: ${state.asicModel || 'Unknown'}`);
+            }
+            if (!state.deviceType) {
+                state.deviceType = this.detectDeviceType(data);
+                const deviceLimits = DEVICE_VOLTAGE_LIMITS[state.deviceType];
+                console.log(`[AutoTune] ${ip}: Detected device type: ${state.deviceType} (Max: ${deviceLimits.maxVoltage}mV / ${deviceLimits.maxFreq}MHz)`);
+                StorageService.saveAutoTuneState(this.autoTuneStates);
+            }
 
-            // Calculate current efficiency (needed for logging and optimization)
+            // Get device-specific voltage cap
+            const freqVoltageCap = this.getDeviceVoltageCap(state, data);
+
+            // Calculate current efficiency
             let efficiency = null;
             if (config.targetEfficiency && hashrate > 0 && power > 0) {
-                efficiency = power / (hashrate / 1000); // J/TH
+                efficiency = power / (hashrate / 1000);
             }
 
             // Fault detection
@@ -108,25 +358,21 @@ class AutoTuneEngine {
                 if (isTempGlitch) reasons.push(`TEMP_GLITCH_DETECTED(-${tempDrop.toFixed(1)}C)`);
 
                 if (state.faultCounter >= 3 && !state.restarting && now > state.stabilizationUntil) {
-                    // NEW: Learn from faults and set per-unit adaptive limits
+                    // Learn adaptive limits
                     const faultVoltage = state.currentVoltage;
                     const faultFreq = state.currentFreq;
 
-                    // Initialize adaptive limits if not present
                     state.adaptiveLimits = state.adaptiveLimits || {
-                        maxVoltage: config.maxVoltage,
-                        maxFreq: config.maxFreq,
-                        faultHistory: []
+                        maxVoltage: freqVoltageCap,
+                        maxFreq: config.maxFreq
                     };
 
-                    // Record this fault with a safety margin
-                    const safetyMarginV = config.voltageStep * 2; // 20-30mV safety margin
-                    const safetyMarginF = config.freqStep * 3;    // 30MHz safety margin
+                    const safetyMarginV = config.voltageStep * 2;
+                    const safetyMarginF = config.freqStep * 3;
 
                     const newMaxVoltage = Math.max(config.minVoltage, faultVoltage - safetyMarginV);
                     const newMaxFreq = Math.max(config.minFreq, faultFreq - safetyMarginF);
 
-                    // Only reduce limits if this fault is higher than previous known limits
                     const voltageReduced = newMaxVoltage < state.adaptiveLimits.maxVoltage;
                     const freqReduced = newMaxFreq < state.adaptiveLimits.maxFreq;
 
@@ -134,27 +380,39 @@ class AutoTuneEngine {
                         state.adaptiveLimits.maxVoltage = Math.min(state.adaptiveLimits.maxVoltage, newMaxVoltage);
                         state.adaptiveLimits.maxFreq = Math.min(state.adaptiveLimits.maxFreq, newMaxFreq);
 
-                        // Track fault history (keep last 10)
-                        state.adaptiveLimits.faultHistory.push({
-                            timestamp: now,
-                            voltage: faultVoltage,
-                            freq: faultFreq,
-                            reason: reasons.join(', '),
-                            newLimits: {
-                                maxVoltage: state.adaptiveLimits.maxVoltage,
-                                maxFreq: state.adaptiveLimits.maxFreq
-                            }
-                        });
-                        if (state.adaptiveLimits.faultHistory.length > 10) {
-                            state.adaptiveLimits.faultHistory.shift();
-                        }
-
-                        console.warn(`[AutoTune] ${ip}: LEARNED FROM FAULT! Reducing limits: V=${config.maxVoltage}mV→${state.adaptiveLimits.maxVoltage}mV, F=${config.maxFreq}MHz→${state.adaptiveLimits.maxFreq}MHz (Fault was at ${faultVoltage}mV/${faultFreq}MHz)`);
+                        console.warn(`[AutoTune] ${ip}: LEARNED FROM FAULT! Reducing limits: V=${freqVoltageCap}mV->${state.adaptiveLimits.maxVoltage}mV, F=${config.maxFreq}MHz->${state.adaptiveLimits.maxFreq}MHz`);
                     }
 
-                    // Use conservative fallback for recovery
-                    const targetVoltage = Math.min(config.minVoltage + (config.voltageStep * 5), state.adaptiveLimits.maxVoltage);
-                    const targetFreq = Math.min(config.minFreq + (config.freqStep * 10), state.adaptiveLimits.maxFreq);
+                    // Log fault to history
+                    state.faultHistory = state.faultHistory || [];
+                    state.faultHistory.push({
+                        timestamp: now,
+                        voltage: faultVoltage,
+                        freq: faultFreq,
+                        reason: reasons.join(', '),
+                        newLimits: {
+                            maxVoltage: state.adaptiveLimits.maxVoltage,
+                            maxFreq: state.adaptiveLimits.maxFreq
+                        },
+                        limitsAdapted: voltageReduced || freqReduced
+                    });
+
+                    // Keep last 50 faults
+                    if (state.faultHistory.length > 50) {
+                        state.faultHistory.shift();
+                    }
+
+                    // NEW: Use PLL curve for recovery if available
+                    let targetVoltage, targetFreq;
+                    if (state.asicModel) {
+                        targetFreq = config.minFreq + (config.freqStep * 10);
+                        targetVoltage = this.getRecommendedVoltage(targetFreq, state.asicModel, state.deviceType) ||
+                            (config.minVoltage + (config.voltageStep * 5));
+                        console.log(`[AutoTune] ${ip}: Using PLL recovery: ${targetVoltage}mV for ${targetFreq}MHz`);
+                    } else {
+                        targetVoltage = Math.min(config.minVoltage + (config.voltageStep * 5), state.adaptiveLimits.maxVoltage);
+                        targetFreq = Math.min(config.minFreq + (config.freqStep * 10), state.adaptiveLimits.maxFreq);
+                    }
 
                     console.warn(`[AutoTune] ${ip}: CRITICAL FAULT CONFIRMED! Reason: ${reasons.join(', ')}. Reverting to safe baseline (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);
 
@@ -185,27 +443,25 @@ class AutoTuneEngine {
             // === POST-RESTART RECOVERY ===
             if (state.restarting && now >= state.stabilizationUntil) {
                 state.restarting = false;
-                newVoltage = config.recoveryVoltage;
-                newFreq = config.recoveryFreq;
+                newVoltage = state.currentVoltage;
+                newFreq = state.currentFreq;
                 action = 'post_restart_recovery';
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 2: EMERGENCY COOLING (Core Temp ≥ 75°C) ===
+            // === PRIORITY 2: EMERGENCY COOLING ===
             else if (temp >= 75) {
                 newVoltage = config.minVoltage;
                 newFreq = config.minFreq;
                 action = 'EMERGENCY_COOLING';
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 3: SOFT FAULT (VRM or Power) ===
+            // === PRIORITY 3: SOFT FAULT ===
             else if (isSoftFault && !state.restarting && now > state.stabilizationUntil) {
                 const softReasons = [];
                 if (isVrTooHot) softReasons.push(`VR_HOT(${vrTemp}C)`);
                 if (isPowerTooHigh) softReasons.push(`POWER_LIMIT(${power}W)`);
 
-                // NEW: Try frequency reduction FIRST before touching voltage
                 newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep * 2);
-                // Only reduce voltage if frequency is already at minimum
                 if (newFreq === config.minFreq) {
                     newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
                 }
@@ -214,20 +470,17 @@ class AutoTuneEngine {
                 console.warn(`[AutoTune] ${ip}: SOFT FAULT! Reason: ${softReasons.join(', ')}. Throttling to ${newVoltage}mV/${newFreq}MHz...`);
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 4: THERMAL DANGER (Temp ≥ 72°C) ===
+            // === PRIORITY 4: THERMAL DANGER ===
             else if (avgTemp >= config.tempDanger) {
-                // NEW: Prioritize frequency reduction over voltage
                 newFreq = Math.max(config.minFreq, newFreq - config.freqStep * 2);
-                // Only reduce voltage if we still need more cooling
                 if (newFreq > config.minFreq || state.currentVoltage > config.minVoltage + config.voltageStep) {
                     newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
                 }
                 action = 'decrease_temp_aggressive';
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 5: THERMAL WARNING (Temp ≥ 68°C) ===
+            // === PRIORITY 5: THERMAL WARNING ===
             else if (avgTemp >= config.tempWarning) {
-                // NEW: Frequency-first approach
                 newFreq = Math.max(config.minFreq, newFreq - config.freqStep);
                 if (newFreq === config.minFreq && avgTemp >= config.tempWarning + 1) {
                     newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
@@ -240,73 +493,60 @@ class AutoTuneEngine {
                 hwErrorDelta > (state.mode === 'aggressive' ? 50 : 5) ||
                 hashPerformance < 0.94) {
 
-                // NEW: More nuanced stability handling
                 const isHighError = smoothErrorRate > config.maxErrorRate;
                 const isLowHash = hashPerformance < 0.94;
 
-                // If we just tried to optimize and it failed, be more aggressive
                 const failedOptimization = ['voltage_pullback_optimization', 'tune_for_efficiency'].includes(state.lastAction);
 
                 if (failedOptimization) {
-                    // Revert optimization attempt
                     newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                     action = 'instability_revert_optimization';
                 } else if (isHighError || hwErrorDelta > 20) {
-                    // Significant instability: reduce frequency OR increase voltage (not both)
-                    // NEW: Prefer frequency reduction if we have headroom
                     if (state.currentFreq > config.minFreq + (config.freqStep * 5)) {
                         newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                         action = 'instability_throttle_freq';
                     } else if (state.currentVoltage < freqVoltageCap) {
-                        // Only increase voltage if frequency is already quite low
                         newVoltage = Math.min(freqVoltageCap, newVoltage + config.voltageStep);
                         action = 'increase_stability_voltage';
                     } else {
-                        // Both are at limits, reduce frequency further
                         newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                         action = 'instability_throttle_freq';
                     }
                 } else if (isLowHash) {
-                    // Hash performance issue: try small voltage bump first
                     if (state.currentVoltage < freqVoltageCap - config.voltageStep) {
                         newVoltage = Math.min(freqVoltageCap, newVoltage + config.voltageStep);
                         action = 'hashrate_stability_boost';
                     } else {
-                        // Voltage at cap, reduce frequency
                         newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                         action = 'hashrate_throttle';
                     }
                 }
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 7-10: OPTIMIZATION (Temp < Target) ===
+            // === PRIORITY 7-10: OPTIMIZATION ===
             else if (avgTemp < config.tempTarget) {
-                // We have thermal headroom - can optimize
-
-                // NEW: Use per-unit adaptive limits if they exist
+                // Use per-unit adaptive limits if they exist
                 state.adaptiveLimits = state.adaptiveLimits || {
-                    maxVoltage: config.maxVoltage,
+                    maxVoltage: freqVoltageCap,
                     maxFreq: config.maxFreq,
                     faultHistory: []
                 };
                 const effectiveMaxVoltage = state.adaptiveLimits.maxVoltage;
                 const effectiveMaxFreq = state.adaptiveLimits.maxFreq;
 
-                // NEW: Frequency-first optimization strategy
                 const hasFreqHeadroom = newFreq < effectiveMaxFreq;
                 const hasVoltageHeadroom = newVoltage < effectiveMaxVoltage;
                 const isVeryStable = (state.stableCycleCount || 0) >= 10 && smoothErrorRate < 0.01;
                 const isStable = (state.stableCycleCount || 0) >= 5 && smoothErrorRate < 0.02;
 
-                // Priority 10: Voltage pullback optimization (only if highly stable AND at max voltage)
+                // Priority 10: Voltage pullback
                 if (newVoltage === effectiveMaxVoltage && isVeryStable && !hasFreqHeadroom) {
                     newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
                     action = 'voltage_pullback_optimization';
                     state.stableCycleCount = 0;
                 }
-                // Priority 8: Efficiency tuning (if configured)
+                // Priority 8: Efficiency tuning
                 else if (efficiency !== null && efficiency > config.targetEfficiency + 0.5) {
-                    // Inefficient: reduce both (but bias toward frequency reduction)
                     newFreq = Math.max(config.minFreq, newFreq - config.freqStep);
                     if (newFreq === config.minFreq) {
                         newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
@@ -314,56 +554,140 @@ class AutoTuneEngine {
                     action = 'tune_for_efficiency';
                     state.stableCycleCount = 0;
                 }
-                // Priority 9: Efficiency headroom (increase frequency)
+                // Priority 9: Efficiency headroom
                 else if (efficiency !== null && efficiency < config.targetEfficiency - 0.5 && hasFreqHeadroom) {
                     newFreq = Math.min(effectiveMaxFreq, newFreq + config.freqStep);
-                    action = 'increase_freq_efficiency';
+
+                    // NEW: Use PLL curve to set optimal voltage for new frequency
+                    if (state.asicModel) {
+                        const currentBaseV = this.getRecommendedVoltage(state.currentFreq, state.asicModel, state.deviceType);
+                        const newBaseV = this.getRecommendedVoltage(newFreq, state.asicModel, state.deviceType);
+
+                        if (currentBaseV !== null && newBaseV !== null) {
+                            // Calculate offset from the curve at current frequency
+                            const offset = state.currentVoltage - currentBaseV;
+                            // Apply offset to the new base voltage
+                            let targetV = newBaseV + offset;
+                            // Clamp to safe limits
+                            targetV = Math.max(config.minVoltage, Math.min(effectiveMaxVoltage, targetV));
+
+                            if (targetV > newVoltage) {
+                                newVoltage = targetV;
+                                action = 'increase_freq_with_pll_offset';
+                                console.log(`[AutoTune] ${ip}: PLL+Offset suggests ${targetV}mV (Base ${newBaseV} + ${offset}) for ${newFreq}MHz`);
+                            } else {
+                                action = 'increase_freq_efficiency';
+                            }
+                        } else if (newBaseV && newBaseV > newVoltage) {
+                            // Fallback to standard PLL if current base missing
+                            newVoltage = Math.min(effectiveMaxVoltage, newBaseV);
+                            action = 'increase_freq_with_pll';
+                            console.log(`[AutoTune] ${ip}: PLL suggests ${newBaseV}mV for ${newFreq}MHz`);
+                        } else {
+                            action = 'increase_freq_efficiency';
+                        }
+                    } else {
+                        action = 'increase_freq_efficiency';
+                    }
                     state.stableCycleCount = 0;
                 }
-                // Priority 7: Standard frequency increase (main optimization path)
+                // Priority 7: Main optimization path - frequency increase
                 else if (hasFreqHeadroom) {
-                    // NEW: Relaxed cooldown logic
                     const recentThrottle = ['instability_throttle_freq', 'instability_revert_optimization'].includes(state.lastAction);
                     const cooldownNeeded = recentThrottle ? 5 : 2;
                     const tempMargin = config.tempTarget - avgTemp;
 
-                    // Allow increase if stable enough AND we have good temperature margin
                     if (isStable && (state.stableCycleCount >= cooldownNeeded) && tempMargin > 3) {
-                        // NEW: Scale frequency increase based on temperature margin
                         const isApproachingTarget = tempMargin < 5;
-                        const freqIncrease = isApproachingTarget ? config.freqStep : config.freqStep * 1.5;
+
+                        // Adaptive Frequency Steps
+                        const distToMax = effectiveMaxFreq - state.currentFreq;
+                        let adaptiveStep = config.freqStep;
+
+                        if (distToMax > 100) adaptiveStep = config.freqStep * 4;      // e.g. +40MHz
+                        else if (distToMax > 50) adaptiveStep = config.freqStep * 2;  // e.g. +20MHz
+
+                        let freqIncrease = isApproachingTarget ? config.freqStep : adaptiveStep;
+
+                        // Ensure we don't overshoot
+                        if (freqIncrease > distToMax) freqIncrease = distToMax;
+
+                        // Enforce minimum step if not at limit
+                        if (freqIncrease < config.freqStep && distToMax >= config.freqStep) freqIncrease = config.freqStep;
 
                         newFreq = Math.min(effectiveMaxFreq, newFreq + Math.floor(freqIncrease));
-                        action = 'increase_freq';
-                        state.stableCycleCount = 0;
 
-                        // NEW: If we're increasing frequency and voltage is above minimum + buffer, try reducing voltage
-                        if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable) {
-                            newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
-                            action = 'increase_freq_reduce_voltage';
+                        // NEW: Use PLL curve to set optimal voltage for new frequency
+                        if (state.asicModel) {
+                            const currentBaseV = this.getRecommendedVoltage(state.currentFreq, state.asicModel, state.deviceType);
+                            const newBaseV = this.getRecommendedVoltage(newFreq, state.asicModel, state.deviceType);
+
+                            if (currentBaseV !== null && newBaseV !== null) {
+                                // Calculate offset from the curve at current frequency
+                                const offset = state.currentVoltage - currentBaseV;
+                                // Apply offset to the new base voltage
+                                let targetV = newBaseV + offset;
+                                // Clamp to safe limits
+                                targetV = Math.max(config.minVoltage, Math.min(effectiveMaxVoltage, targetV));
+
+                                if (targetV > newVoltage) {
+                                    newVoltage = targetV;
+                                    action = 'increase_freq_with_pll_offset';
+                                    console.log(`[AutoTune] ${ip}: PLL+Offset suggests ${targetV}mV (Base ${newBaseV} + ${offset}) for ${newFreq}MHz`);
+                                } else {
+                                    action = 'increase_freq';
+                                    // Try reducing voltage if very stable and PLL says we can (and targetV is lower)
+                                    // Using targetV here respects the offset logic even for reduction
+                                    if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable && targetV < newVoltage) {
+                                        newVoltage = Math.max(config.minVoltage, targetV);
+                                        action = 'increase_freq_reduce_voltage_pll';
+                                    }
+                                }
+                            } else if (newBaseV) {
+                                // Fallback logic if current base is missing
+                                if (newBaseV > newVoltage) {
+                                    newVoltage = Math.min(effectiveMaxVoltage, newBaseV);
+                                    action = 'increase_freq_with_pll';
+                                    console.log(`[AutoTune] ${ip}: PLL suggests ${newBaseV}mV for ${newFreq}MHz`);
+                                } else {
+                                    action = 'increase_freq';
+                                    if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable && newBaseV < newVoltage) {
+                                        newVoltage = Math.max(config.minVoltage, newBaseV);
+                                        action = 'increase_freq_reduce_voltage_pll';
+                                    }
+                                }
+                            } else {
+                                // No PLL data
+                                action = 'increase_freq';
+                                if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable) {
+                                    newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                                    action = 'increase_freq_reduce_voltage';
+                                }
+                            }
+                        } else {
+                            // No PLL data, use existing logic
+                            action = 'increase_freq';
+                            if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable) {
+                                newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                                action = 'increase_freq_reduce_voltage';
+                            }
                         }
+                        state.stableCycleCount = 0;
                     } else {
                         action = 'maintain';
                     }
                 }
-                // No headroom for frequency, try voltage optimization if stable
-                else if (hasVoltageHeadroom && avgTemp < config.tempTarget - 3 && isVeryStable) {
-                    // This is rare but can help if we're thermally limited
-                    action = 'maintain';
-                } else {
+                else {
                     action = 'maintain';
                 }
             }
 
-            // Track stability
+            // Track stability and last known good
             if (action === 'maintain' || action === 'stabilizing') {
                 state.stableCycleCount = (state.stableCycleCount || 0) + 1;
 
-                // NEW: Track "Last Known Good" only for truly optimal states
-                // Require 30 stable cycles (5 minutes), very low error, and high frequency
-                // Use adaptive limits if available
                 state.adaptiveLimits = state.adaptiveLimits || {
-                    maxVoltage: config.maxVoltage,
+                    maxVoltage: freqVoltageCap,
                     maxFreq: config.maxFreq,
                     faultHistory: []
                 };
@@ -383,7 +707,7 @@ class AutoTuneEngine {
                 }
             }
 
-            // Respect stabilization period (except for critical thermal events)
+            // Respect stabilization period
             if (isStabilizing && !['EMERGENCY_COOLING', 'decrease_temp_warning', 'decrease_temp_aggressive'].includes(action)) {
                 if (newFreq > state.currentFreq || newVoltage > state.currentVoltage) {
                     newFreq = state.currentFreq;
@@ -392,8 +716,8 @@ class AutoTuneEngine {
                 }
             }
 
-            // Apply voltage cap based on frequency
-            const nextVoltageCap = this.getFreqVoltageCap(newFreq, config.maxVoltage);
+            // Apply voltage cap
+            const nextVoltageCap = this.getDeviceVoltageCap(state, data);
             if (newVoltage > nextVoltageCap) {
                 newVoltage = nextVoltageCap;
                 if (!['EMERGENCY_COOLING', 'decrease_temp_warning', 'decrease_temp_aggressive'].includes(action)) {
@@ -407,20 +731,23 @@ class AutoTuneEngine {
             state.lastAction = action;
             StorageService.saveAutoTuneState(this.autoTuneStates);
 
-            // Apply changes if needed
+            // Apply changes
             if (newVoltage !== state.currentVoltage || newFreq !== state.currentFreq) {
-                console.log(`[AutoTune] ${ip}: ${state.currentVoltage}mV/${state.currentFreq}MHz -> ${newVoltage}mV/${newFreq}MHz (Action: ${action}, Temp: ${temp}°C, Margin: ${(config.tempTarget - temp).toFixed(1)}°C, Error: ${(smoothErrorRate * 100).toFixed(2)}%, Stable: ${state.stableCycleCount})`);
+                const pllIndicator = action.includes('pll') ? ' [PLL]' : '';
+                console.log(`[AutoTune] ${ip}: ${state.currentVoltage}mV/${state.currentFreq}MHz -> ${newVoltage}mV/${newFreq}MHz (Action: ${action}${pllIndicator}, Temp: ${temp}°C, Err: ${(smoothErrorRate * 100).toFixed(2)}%, HW: ${hwErrorDelta}, Perf: ${(hashPerformance * 100).toFixed(1)}%, Stable: ${state.stableCycleCount})`);
                 this.applySettings(ip, newVoltage, newFreq).catch(e => console.error(`[AutoTune] ${ip} Apply Error:`, e.message));
                 state.currentVoltage = newVoltage;
                 state.currentFreq = newFreq;
                 state.lastAdjustment = now;
                 StorageService.saveAutoTuneState(this.autoTuneStates);
             } else {
-                // Heartbeat every 6 cycles (~1 minute)
+                // Heartbeat
                 state.heartbeatCount = (state.heartbeatCount || 0) + 1;
                 if (state.heartbeatCount >= 6) {
                     const effStr = efficiency !== null ? `, ${efficiency.toFixed(1)}J/TH` : '';
-                    console.log(`[AutoTune] ${ip}: ${state.currentVoltage}mV/${state.currentFreq}MHz (${temp}°C, Δ${(config.tempTarget - temp).toFixed(1)}°C, ${(smoothErrorRate * 100).toFixed(2)}%${effStr}, Stable: ${state.stableCycleCount}, ${state.mode})`);
+                    const chipStr = state.asicModel ? ` [${state.asicModel}]` : '';
+                    const deviceStr = state.deviceType !== '5V' ? ` (${state.deviceType})` : '';
+                    console.log(`[AutoTune] ${ip}${chipStr}${deviceStr}: ${state.currentVoltage}mV/${state.currentFreq}MHz (${temp}°C, Δ${(config.tempTarget - temp).toFixed(1)}°C, ${(smoothErrorRate * 100).toFixed(2)}%${effStr}, Stable: ${state.stableCycleCount}, ${state.mode})`);
                     state.heartbeatCount = 0;
                 }
             }
@@ -465,16 +792,23 @@ class AutoTuneEngine {
         const state = this.autoTuneStates.get(ip);
         if (!state) return null;
 
+        const config = CONFIG.AUTOTUNE[state.mode];
+        const deviceType = state.deviceType || '5V';
+        const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType];
+
         return {
             adaptiveLimits: state.adaptiveLimits || {
-                maxVoltage: CONFIG.AUTOTUNE[state.mode]?.maxVoltage,
-                maxFreq: CONFIG.AUTOTUNE[state.mode]?.maxFreq,
-                faultHistory: []
+                maxVoltage: Math.min(config.maxVoltage, deviceLimits.maxVoltage),
+                maxFreq: Math.min(config.maxFreq, deviceLimits.maxFreq)
             },
+            faultHistory: state.faultHistory || [],
             configLimits: {
-                maxVoltage: CONFIG.AUTOTUNE[state.mode]?.maxVoltage,
-                maxFreq: CONFIG.AUTOTUNE[state.mode]?.maxFreq
-            }
+                maxVoltage: config.maxVoltage,
+                maxFreq: config.maxFreq
+            },
+            deviceLimits: deviceLimits,
+            asicModel: state.asicModel,
+            deviceType: state.deviceType
         };
     }
 
@@ -484,32 +818,36 @@ class AutoTuneEngine {
         if (!state) return false;
 
         const config = CONFIG.AUTOTUNE[state.mode];
+        const deviceType = state.deviceType || '5V';
+        const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType];
+
         state.adaptiveLimits = {
-            maxVoltage: config.maxVoltage,
-            maxFreq: config.maxFreq,
-            faultHistory: []
+            maxVoltage: Math.min(config.maxVoltage, deviceLimits.maxVoltage),
+            maxFreq: Math.min(config.maxFreq, deviceLimits.maxFreq)
         };
 
-        console.log(`[AutoTune] ${ip}: Reset adaptive limits to config defaults (${config.maxVoltage}mV/${config.maxFreq}MHz)`);
+        console.log(`[AutoTune] ${ip}: Reset adaptive limits to config defaults (${state.adaptiveLimits.maxVoltage}mV/${state.adaptiveLimits.maxFreq}MHz)`);
         StorageService.saveAutoTuneState(this.autoTuneStates);
         return true;
     }
 
-    // Manually set adaptive limits (useful for known problematic units)
+    // Manually set adaptive limits
     setAdaptiveLimits(ip, maxVoltage, maxFreq) {
         const state = this.autoTuneStates.get(ip);
         if (!state) return false;
 
         const config = CONFIG.AUTOTUNE[state.mode];
+        const deviceType = state.deviceType || '5V';
+        const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType];
 
-        // Validate limits
-        if (maxVoltage < config.minVoltage || maxVoltage > config.maxVoltage ||
-            maxFreq < config.minFreq || maxFreq > config.maxFreq) {
-            console.error(`[AutoTune] ${ip}: Invalid limits. Must be within ${config.minVoltage}-${config.maxVoltage}mV and ${config.minFreq}-${config.maxFreq}MHz`);
+        // Validate against device hardware limits
+        if (maxVoltage < config.minVoltage || maxVoltage > deviceLimits.maxVoltage ||
+            maxFreq < config.minFreq || maxFreq > deviceLimits.maxFreq) {
+            console.error(`[AutoTune] ${ip}: Invalid limits. Must be within ${config.minVoltage}-${deviceLimits.maxVoltage}mV and ${config.minFreq}-${deviceLimits.maxFreq}MHz for ${deviceType} device`);
             return false;
         }
 
-        state.adaptiveLimits = state.adaptiveLimits || { faultHistory: [] };
+        state.adaptiveLimits = state.adaptiveLimits || {};
         state.adaptiveLimits.maxVoltage = maxVoltage;
         state.adaptiveLimits.maxFreq = maxFreq;
 
