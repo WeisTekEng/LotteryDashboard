@@ -277,7 +277,41 @@ Device Limits: {
 This prevents:
 - Trying to push 12V voltages on 5V devices (damage risk)
 - Exceeding safe limits for each device class
+- Exceeding safe limits for each device class
 - Config mistakes causing hardware damage
+
+---
+
+## Smart Tuning Modes
+
+### **1. Aggressive Mode**
+Focuses purely on maximizing hashrate. It will push frequency and voltage until:
+- Hardware limit is reached
+- Temperature warning is triggered
+- Instability is detected
+
+### **2. Conservative Mode**
+Focuses on efficiency (Joules per Terahash). It will stop increasing frequency if efficiency drops below the target, even if there is thermal/voltage headroom.
+
+### **3. Cost Sensitive Mode (NEW)**
+A "smart budget" mode that throttles performance to meet a financial target.
+
+**Configuration:**
+- **Electricity Price**: Your cost per kWh (e.g., $0.12).
+- **Max Daily Cost**: The maximum amount you want to spend per miner per day (e.g., $1.50).
+- *(Inputs appear inline on the miner card when mode is selected)*
+
+**How it works:**
+1.  Calculates real-time daily cost: `(Watts / 1000) * 24 * Price`. *(UI displays Monthly Cost Estimate for convenience)*
+2.  **Priority Check**: Before thermal or efficiency checks, it verifies the budget.
+3.  **Throttling**: If `CurrentCost > Limit`, it reduces frequency/voltage immediately.
+4.  **Optimization**: It only attempts to increase frequency if there is "Cost Headroom" (current cost < limit).
+
+**Example:**
+- You set limit to $1.00/day.
+- Miner is running at 900MHz (15W). Cost = $0.90/day.
+- Engine increases to 950MHz (18W). Cost = $1.08/day.
+- **Action**: Engine detects overrun ($1.08 > $1.00) and throttles back down, ensuring you never overpay.
 
 ---
 

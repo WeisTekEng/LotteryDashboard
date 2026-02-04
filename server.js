@@ -123,9 +123,8 @@ app.post('/miners/:ip/metadata', (req, res) => {
     if (autoTune === 'off') {
       autoTuneStates.delete(ip);
     } else {
-      autoTuneStates.set(ip, {
-        enabled: true,
-        mode: autoTune,
+      // Preserve existing state if present, or create new
+      const existingState = autoTuneStates.get(ip) || {
         lastAdjustment: 0,
         tempHistory: [],
         currentVoltage: null,
@@ -136,7 +135,16 @@ app.post('/miners/:ip/metadata', (req, res) => {
         stableCycleCount: 0,
         lastAction: 'maintain',
         stabilizationUntil: 0,
-        restarting: false
+        restarting: false,
+        faultHistory: []
+      };
+
+      autoTuneStates.set(ip, {
+        ...existingState,
+        enabled: true,
+        mode: autoTune,
+        kwhPrice: req.body.kwhPrice ? parseFloat(req.body.kwhPrice) : existingState.kwhPrice,
+        dailyCostLimit: req.body.dailyCostLimit ? parseFloat(req.body.dailyCostLimit) : existingState.dailyCostLimit
       });
     }
   }

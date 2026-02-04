@@ -50,6 +50,8 @@ class StorageService {
                     autoTuneStates.set(item.ip, {
                         enabled: item.enabled,
                         mode: item.mode,
+                        kwhPrice: item.kwhPrice || null,
+                        dailyCostLimit: item.dailyCostLimit || null,
                         lastAdjustment: 0,
                         tempHistory: [],
                         currentVoltage: item.currentVoltage,
@@ -82,6 +84,8 @@ class StorageService {
                 ip,
                 enabled: state.enabled,
                 mode: state.mode,
+                kwhPrice: state.kwhPrice || null,
+                dailyCostLimit: state.dailyCostLimit || null,
                 currentVoltage: state.currentVoltage,
                 currentFreq: state.currentFreq,
                 lastShares: state.lastShares,

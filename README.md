@@ -548,12 +548,16 @@ The current engine represents significant improvements over traditional auto-tun
 - Gradual climb from known-safe state
 - Never attempt failed settings again
 
-### 5. "Last Known Good" Tracking
-- Only records truly optimal states (30 cycles, < 1% error, ≥80% of adaptive max freq)
-- Ensures "good" state is actually high-performance
-- Considers adaptive limits, not just config limits
+### 3. Smart Tuning Modes
+- **Aggressive**: Pushes frequency/voltage to the absolute limit (Priority 10).
+- **Conservative**: Prioritizes efficiency (J/TH) over raw hashrate.
+- **Cost Sensitive (NEW)**: Optimizes performance while strictly adhering to a daily budget.
+  - Set your electricity price ($/kWh) and max daily cost ($).
+  - **How to Config**: Select "Cost Sensitive" from the dropdown on the miner card. Input fields for Price and Daily Limit will appear directly on the card.
+  - The miner runs as fast as possible without exceeding your budget.
+  - *Example: "Give me max hashrate, but don't spend more than $1.00/day."*
 
-#### 6. Smart Acceleration (Adaptive Steps)
+#### 4. Smart Acceleration (Adaptive Steps)
 **Before**:
 - Fixed 10MHz steps regardless of potential
 - Slow to reach high frequencies (e.g., 600 -> 1200MHz took hours)
@@ -564,6 +568,11 @@ The current engine represents significant improvements over traditional auto-tun
 - **2x Speed** (+20MHz) when >50MHz from limit
 - **Precision** (+10MHz) when approaching limit
 - Result: Reaches optimal range 4-5x faster while maintaining safety
+
+### 5. "Last Known Good" Tracking
+- Only records truly optimal states (30 cycles, < 1% error, ≥80% of adaptive max freq)
+- Ensures "good" state is actually high-performance
+- Considers adaptive limits, not just config limits
 
 
 ### Configuration Recommendations

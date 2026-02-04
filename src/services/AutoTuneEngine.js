@@ -252,15 +252,27 @@ class AutoTuneEngine {
         const deviceLimits = DEVICE_VOLTAGE_LIMITS[deviceType] || DEVICE_VOLTAGE_LIMITS['5V'];
 
         // Use mode-specific max voltage, but don't exceed device hardware limit
-        const config = CONFIG.AUTOTUNE[state.mode];
+        const config = CONFIG.AUTOTUNE[state.mode] || CONFIG.AUTOTUNE['conservative'];
         return Math.min(config.maxVoltage, deviceLimits.maxVoltage);
+    }
+
+    calculateDailyCost(powerW, kwhPrice) {
+        if (!powerW || !kwhPrice) return 0;
+        // Watts / 1000 = kW * 24 hours * Price
+        return (powerW / 1000) * 24 * kwhPrice;
     }
 
     async run(ip) {
         const state = this.autoTuneStates.get(ip);
         if (!state || !state.enabled) return;
 
-        const config = CONFIG.AUTOTUNE[state.mode];
+        let config = CONFIG.AUTOTUNE[state.mode];
+        if (!config) {
+            console.warn(`[AutoTune] Missing config for mode '${state.mode}'. Defaulting to 'conservative'.`);
+            config = CONFIG.AUTOTUNE['conservative'];
+            // Optionally update state to match, or just use conservative limits for this run
+        }
+
         const now = Date.now();
 
         if (now - state.lastAdjustment < config.adjustInterval) return;
@@ -283,6 +295,10 @@ class AutoTuneEngine {
             const vrTemp = parseFloat(data.vrTemp) || 0;
             const inputVolts = parseFloat(data.voltage) || 0;
             const hashPerformance = expectedHashrate > 0 ? (hashrate / expectedHashrate) : 1;
+
+            // Cost Calculations
+            const isCostSensitive = state.mode === 'cost_sensitive';
+            const currentDailyCost = this.calculateDailyCost(power, state.kwhPrice);
 
             // Calculate error rate
             let liveErrorRate = 0;
@@ -455,7 +471,18 @@ class AutoTuneEngine {
                 action = 'EMERGENCY_COOLING';
                 state.stableCycleCount = 0;
             }
-            // === PRIORITY 3: SOFT FAULT ===
+            // === PRIORITY 3: COST OVERRUN (Cost Sensitive Mode) ===
+            else if (isCostSensitive && state.dailyCostLimit && currentDailyCost > state.dailyCostLimit) {
+                if (state.currentFreq > config.minFreq) {
+                    newFreq = Math.max(config.minFreq, state.currentFreq - (config.freqStep * 2));
+                    action = 'cost_throttle_freq';
+                } else {
+                    newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                    action = 'cost_throttle_voltage';
+                }
+                state.stableCycleCount = 0;
+            }
+            // === PRIORITY 3.5: SOFT FAULT ===
             else if (isSoftFault && !state.restarting && now > state.stabilizationUntil) {
                 const softReasons = [];
                 if (isVrTooHot) softReasons.push(`VR_HOT(${vrTemp}C)`);
@@ -534,8 +561,11 @@ class AutoTuneEngine {
                 const effectiveMaxVoltage = state.adaptiveLimits.maxVoltage;
                 const effectiveMaxFreq = state.adaptiveLimits.maxFreq;
 
-                const hasFreqHeadroom = newFreq < effectiveMaxFreq;
-                const hasVoltageHeadroom = newVoltage < effectiveMaxVoltage;
+                // Cost Headroom Check
+                const hasCostHeadroom = !isCostSensitive || !state.dailyCostLimit || currentDailyCost < state.dailyCostLimit;
+
+                const hasFreqHeadroom = newFreq < effectiveMaxFreq && hasCostHeadroom;
+                const hasVoltageHeadroom = newVoltage < effectiveMaxVoltage && hasCostHeadroom;
                 const isVeryStable = (state.stableCycleCount || 0) >= 10 && smoothErrorRate < 0.01;
                 const isStable = (state.stableCycleCount || 0) >= 5 && smoothErrorRate < 0.02;
 
@@ -804,7 +834,9 @@ class AutoTuneEngine {
             faultHistory: state.faultHistory || [],
             configLimits: {
                 maxVoltage: config.maxVoltage,
-                maxFreq: config.maxFreq
+                maxFreq: config.maxFreq,
+                kwhPrice: state.kwhPrice,
+                dailyCostLimit: state.dailyCostLimit
             },
             deviceLimits: deviceLimits,
             asicModel: state.asicModel,

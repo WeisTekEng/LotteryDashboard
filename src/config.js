@@ -41,6 +41,26 @@ const DEFAULT_CONFIG = {
             maxInputVolts: 5600,
             maxWatts: 40
         },
+        cost_sensitive: {
+            minVoltage: 1150,
+            maxVoltage: 1380,
+            minFreq: 450,
+            maxFreq: 800,
+            voltageStep: 10,
+            freqStep: 10,
+            adjustInterval: 60000,
+            tempTarget: 68,
+            tempWarning: 72,
+            tempDanger: 75,
+            targetEfficiency: null,
+            maxErrorRate: 0.03,
+            recoveryVoltage: 1150,
+            recoveryFreq: 500,
+            maxVrTemp: 95,
+            minInputVolts: 4800,
+            maxInputVolts: 5600,
+            maxWatts: 50
+        },
         aggressive: {
             minVoltage: 1150,
             maxVoltage: 1380,
