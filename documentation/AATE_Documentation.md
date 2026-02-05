@@ -1,4 +1,4 @@
-# AutoTune PLL Branch - Documentation
+# AATE (Adaptive Auto-Tuning Engine) - Documentation
 
 ## Overview
 
