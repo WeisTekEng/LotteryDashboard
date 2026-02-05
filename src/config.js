@@ -66,14 +66,14 @@ const DEFAULT_CONFIG = {
             maxVoltage: 1380,
             minFreq: 675,
             maxFreq: 1200,
-            voltageStep: 15,
-            freqStep: 10,
+            voltageStep: 2.8125,
+            freqStep: 6.25,
             adjustInterval: 30000,
             tempTarget: 71,
             tempWarning: 72,
             tempDanger: 73,
             targetEfficiency: null,
-            maxErrorRate: 0.0075, // Ratio 1-0 0.75% = 0.0075
+            maxErrorRate: 0.01, // Ratio 1-0 0.75% = 0.0075
             recoveryVoltage: 1150,
             recoveryFreq: 800,
             maxVrTemp: 105,

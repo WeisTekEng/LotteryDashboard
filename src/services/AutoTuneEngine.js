@@ -71,25 +71,135 @@ const PLL_VOLTAGE_CURVES = {
         1600: 1680
     },
     'BM1370': {
-        400: 900,
-        450: 967,
-        500: 1033,
-        550: 1100,
-        600: 1122,
-        650: 1144,
-        700: 1166,
-        750: 1188,
-        800: 1210,
-        850: 1231,
-        900: 1253,
-        950: 1275,
-        1000: 1297,
-        1050: 1317,
-        1100: 1337,
-        1150: 1357,
-        1200: 1377,
-        1250: 1397,
-        1300: 1417,
+        400.00: 941,
+        406.25: 944,
+        412.50: 947,
+        418.75: 950,
+        425.00: 953,
+        431.25: 955,
+        437.50: 958,
+        443.75: 961,
+        450.00: 964,
+        456.25: 967,
+        462.50: 969,
+        468.75: 972,
+        475.00: 975,
+        481.25: 978,
+        487.50: 981,
+        493.75: 983,
+        500.00: 986,
+        506.25: 989,
+        512.50: 992,
+        518.75: 995,
+        525.00: 998,
+        531.25: 1000,
+        537.50: 1003,
+        543.75: 1006,
+        550.00: 1009,
+        556.25: 1012,
+        562.50: 1014,
+        568.75: 1017,
+        575.00: 1020,
+        581.25: 1023,
+        587.50: 1026,
+        593.75: 1028,
+        600.00: 1031,
+        606.25: 1034,
+        612.50: 1037,
+        618.75: 1040,
+        625.00: 1043,
+        631.25: 1045,
+        637.50: 1048,
+        643.75: 1051,
+        650.00: 1054,
+        656.25: 1057,
+        662.50: 1059,
+        668.75: 1062,
+        675.00: 1065,
+        681.25: 1068,
+        687.50: 1071,
+        693.75: 1073,
+        700.00: 1076,
+        706.25: 1079,
+        712.50: 1082,
+        718.75: 1085,
+        725.00: 1088,
+        731.25: 1090,
+        737.50: 1093,
+        743.75: 1096,
+        750.00: 1099,
+        756.25: 1102,
+        762.50: 1104,
+        768.75: 1107,
+        775.00: 1110,
+        781.25: 1113,
+        787.50: 1116,
+        793.75: 1118,
+        800.00: 1121,
+        806.25: 1124,
+        812.50: 1127,
+        818.75: 1130,
+        825.00: 1133,
+        831.25: 1135,
+        837.50: 1138,
+        843.75: 1141,
+        850.00: 1144,
+        856.25: 1147,
+        862.50: 1149,
+        868.75: 1152,
+        875.00: 1155,
+        881.25: 1158,
+        887.50: 1161,
+        893.75: 1163,
+        900.00: 1166,
+        906.25: 1169,
+        912.50: 1172,
+        918.75: 1175,
+        925.00: 1178,
+        931.25: 1180,
+        937.50: 1183,
+        943.75: 1186,
+        950.00: 1189,
+        956.25: 1192,
+        962.50: 1194,
+        968.75: 1197,
+        975.00: 1200,
+        981.25: 1203,
+        987.50: 1206,
+        993.75: 1208,
+        1000.00: 1211,
+        1006.25: 1214,
+        1012.50: 1217,
+        1018.75: 1220,
+        1025.00: 1223,
+        1031.25: 1225,
+        1037.50: 1228,
+        1043.75: 1231,
+        1050.00: 1234,
+        1056.25: 1237,
+        1062.50: 1239,
+        1068.75: 1242,
+        1075.00: 1245,
+        1081.25: 1248,
+        1087.50: 1251,
+        1093.75: 1253,
+        1100.00: 1256,
+        1106.25: 1259,
+        1112.50: 1262,
+        1118.75: 1265,
+        1125.00: 1268,
+        1131.25: 1270,
+        1137.50: 1273,
+        1143.75: 1276,
+        1150.00: 1279,
+        1156.25: 1282,
+        1162.50: 1284,
+        1168.75: 1287,
+        1175.00: 1290,
+        1181.25: 1293,
+        1187.50: 1296,
+        1193.75: 1298,
+        1200.00: 1301,
     }
 };
 
@@ -645,7 +755,7 @@ class AutoTuneEngine {
                         // Enforce minimum step if not at limit
                         if (freqIncrease < config.freqStep && distToMax >= config.freqStep) freqIncrease = config.freqStep;
 
-                        newFreq = Math.min(effectiveMaxFreq, newFreq + Math.floor(freqIncrease));
+                        newFreq = Math.min(effectiveMaxFreq, newFreq + freqIncrease);
 
                         // NEW: Use PLL curve to set optimal voltage for new frequency
                         if (state.asicModel) {
@@ -703,9 +813,20 @@ class AutoTuneEngine {
                             }
                         }
                         state.stableCycleCount = 0;
+                    } else if (isVeryStable && state.currentVoltage > config.minVoltage + (config.voltageStep * 3)) {
+                        // Thermal Wall: Temp is tight (< 1.0 margin), so we reduce voltage to cool down and allow future boost
+                        newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                        action = 'optimize_voltage_thermal';
+                        state.stableCycleCount = 0;
                     } else {
                         action = 'maintain';
                     }
+                }
+                else if (isVeryStable && state.currentVoltage > config.minVoltage + (config.voltageStep * 3)) {
+                    // Max Frequency Reached (or Cost Limit) -> Optimize Efficiency
+                    newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                    action = 'optimize_voltage_max_freq';
+                    state.stableCycleCount = 0;
                 }
                 else {
                     action = 'maintain';
@@ -787,12 +908,13 @@ class AutoTuneEngine {
     }
 
     async applySettings(ip, voltage, freq, restart = false) {
-        console.log(`[AutoTune] ${ip}: Sending command -> ${voltage}mV, ${freq}MHz`);
+        const sentVoltage = Math.round(voltage);
+        console.log(`[AutoTune] ${ip}: Sending command -> ${sentVoltage}mV (${voltage.toFixed(2)}), ${freq}MHz`);
         try {
             const res = await fetch(`http://${ip}/api/system`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ coreVoltage: voltage, frequency: freq })
+                body: JSON.stringify({ coreVoltage: sentVoltage, frequency: freq })
             });
             if (!res.ok) {
                 const text = await res.text();

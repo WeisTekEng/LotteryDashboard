@@ -20,10 +20,14 @@ This is a local dashboard to monitor and configure your LotteryMiner fleet via U
 *   **Auto-Tune Engine**: [Bitaxe hardware only] Autonomous frequency and voltage optimization with adaptive per-unit learning.
     *   **Conservative Mode**: Safe adjustments to optimize stability and efficiency.
     *   **Aggressive Mode**: Maximizes performance (requires caution/improved cooling).
+    *   **Cost Sensitive Mode (NEW)**: Optimizes hashrate while strictly adhering to a daily budget ($/day).
     *   **Adaptive Limits**: Automatically learns each unit's hardware capabilities and respects individual limitations.
     *   **Smart Tuning**:
+        *   **PLL Voltage Curves**: Uses voltage curves + safety margins for precise tuning, BM1370 has a 
+        full voltage curve available, BM1387 does not needs more testing and community feedback.
+        *   **Dual-Stage Optimization**: First maximizes frequency ("The Climb"), then minimizes voltage ("The Squeeze").
         *   **Adaptive Step Sizing**: Takes large frequency steps (e.g., +40MHz) when far from limits, and precision steps (e.g., +10MHz) when close.
-        *   **PLL Offset Learning**: Learns the specific voltage offset required by your silicon and maintains that efficiency advantage (or necessary compensation) as it scales.
+    *   **Full Documentation**: See [AATE Deep Dive](documentation/AATE_Documentation.md).
 *   **Live Server Logs**: Real-time streaming of server-side adjustments and status updates directly on the dashboard.
 *   **Multi-Coin Support**: Track Bitcoin (BTC) and Bitcoin Cash (BCH) network stats simultaneously.
 *   **Solo Mining Odds**: Integrated "Lottery" stats calculation for both BTC and BCH, including potential rewards and daily win probability.
@@ -44,11 +48,12 @@ To configure a miner remotely:
 ## Live Server Logs
 
 The dashboard includes a "Live Logs" page for real-time monitoring:
--   **Auto-Tune Adjustments**: See exactly when the engine increases or throttles a miner
--   **Adaptive Limit Learning**: Watch as units learn their individual capabilities
--   **Fault Detection**: Real-time visibility into fault confirmation and recovery
--   **Discovery Events**: Track when new devices are found on your network
--   **Network Status**: Real-time feedback on API communication and stats fetching
+-   **Auto-Tune Adjustments**: See exactly when the engine increases or throttles a miner, including PLL-based voltage decisions.
+-   **Adaptive Limit Learning**: Watch as units learn their individual capabilities.
+-   **Fault Detection**: Real-time visibility into fault confirmation and recovery.
+-   **Cost Tracking**: Monitor real-time daily cost vs budget (in Cost Sensitive Mode).
+-   **Discovery Events**: Track when new devices are found on your network.
+-   **Network Status**: Real-time feedback on API communication and stats fetching.
 
 ## Installation and use
 
@@ -178,39 +183,31 @@ You can override any setting in the dashboard (ports, scan intervals, auto-tune 
    - Consider heatsink upgrades
    - Monitor VRM temperatures
 
-#### Maintenance (Fault reviews have been intigrated into the Auto-Tune Monitor page.)
+#### Maintenance
+**Fault reviews and limit management are integrated into the Auto-Tune Monitor page.**
 
-1. **Review Fault History Weekly**
-   ```javascript
-   const limits = autoTuneEngine.getAdaptiveLimits('192.168.1.197');
-   console.log(limits.adaptiveLimits.faultHistory);
-   ```
-   
-   If you see:
-   - **Same fault repeatedly**: Hardware issue, needs repair
-   - **Faults during high ambient temp**: Cooling insufficient
-   - **Random scattered faults**: Normal learning, no action needed
+1. **Review Fault History**
+   - Click the **$ (Dollar/Cache)** icon on any miner card in the Auto-Tune Monitor.
+   - This displays the **Adaptive Limits** modal, showing the current learned max voltage/frequency and the last 10 faults.
+   - **What to look for**:
+     - **Same fault repeatedly**: Hardware issue (needs repair).
+     - **Faults during high ambient temp**: Cooling insufficient.
+     - **Random scattered faults**: Normal learning process.
 
-2. **Reset Limits After Hardware Changes**
-   ```javascript
-   // After PSU replacement, cooling upgrade, etc.
-   autoTuneEngine.resetAdaptiveLimits('192.168.1.197');
-   ```
+2. **Reset Limits**
+   - If you change hardware (new PSU, new fan), you should reset the learned limits.
+   - Click the **Reset (Cycle)** icon on the miner card.
+   - Confirm the action to clear `autotune_state.json` for that specific miner.
 
-3. **Set Manual Limits for Known Issues, this will be integrated later into the Auto-Tune Monitor page**
-   ```javascript
-   // If you know a unit has a weak 5V rail at 4.85V
-   autoTuneEngine.setAdaptiveLimits('192.168.1.197', 1300, 1100);
-   
+3. **Manual Limits**
+   - Advanced users can manually set limits via the API (see `documentation/AATE_Documentation.md`) or by editing `data/autotune_state.json` manually (requires restart).
 #### Troubleshooting
 
 **Unit Won't Reach Expected Frequency**
-1. Check if adaptive limits lower than config: `getAdaptiveLimits(ip)` while on the Auto-Tune Monitor page 
-   click the $ icon to see any recorded faults.
-2. Review fault history to identify root cause
+1. Check if **Adaptive Limits** are lower than config: Click the **$** icon in Auto-Tune Monitor.
+2. Review fault history in the modal to identify root cause (e.g. repeated Power Faults).
 3. Fix hardware issue if present (PSU, cooling, etc.)
-4. Reset adaptive limits: `resetAdaptiveLimits(ip)` while on the Auto-Tune Monitor page click the reset icon to 
-   reset the adaptive limits.
+4. Reset adaptive limits: Click the **Reset** icon on the miner card.
 
 **Limits Too Conservative**
 1. Review last fault in history
@@ -261,446 +258,8 @@ You can override any setting in the dashboard (ports, scan intervals, auto-tune 
 
 ---
 
----
+The AATE deep dive documentation can be found here: [AATE Deep Dive](documentation/AATE_Documentation.md)
 
-## Auto-Tune Engine Deep Dive
-
-The Auto-Tune engine is an autonomous feedback system designed to find the optimal operating point for each individual ASIC chip. Since no two chips are identical due to manufacturing variance, the engine continuously monitors telemetry and makes intelligent micro-adjustments to maximize hashrate while maintaining stability and thermal safety.
-
-**Bitaxe 601 - Gamma01 - Hashrate Increasing**
-![Gamma01](Images/Gamma01HashIncreasing.PNG)
-**Bitaxe 601 - Gamma02 - Hashrate Increasing**
-![Gamma02](Images/Gamma02HashIncreasing.PNG)
-
-### Core Architecture
-
-The engine operates on a **10-30 second feedback loop** with a **frequency-first optimization philosophy**. This engine prioritizes frequency adjustments and uses voltage surgically, preventing a "voltage creep" problem where units end up at maximum voltage with low frequency.
-
-### How It Works
-
-#### 1. Telemetry Collection (Every 10-30s)
-The engine fetches comprehensive real-time data from each miner:
-- **Core Temperature**: Primary thermal metric
-- **VRM Temperature**: Power delivery health
-- **Input Voltage**: 5V rail monitoring (critical for fault detection)
-- **Power Consumption**: Actual watts drawn
-- **Hash Performance**: Actual vs expected hashrate
-- **Error Rates**: Hardware errors and rejected shares
-- **Share Statistics**: Valid/invalid share tracking
-
-#### 2. Intelligent Analysis
-
-**Stability Monitoring**
-- Calculates a 5-cycle **moving average error rate** for stability
-- Tracks hardware error deltas to detect sudden instability
-- Monitors hashrate performance (actual vs expected)
-- Distinguishes between minor variance and critical issues
-
-**Thermal Management**
-- Uses **5-cycle temperature moving average** to filter sensor noise
-- Tracks temperature margins (target temp - actual temp)
-- Detects impossible temperature drops (sensor glitches)
-- Prevents over-reaction to transient thermal spikes
-
-**Efficiency Analysis** (Conservative Mode)
-- Calculates Joules per Terahash (J/TH)
-- Compares against target efficiency
-- Optimizes for cost-effectiveness, not just raw speed
-
-**Adaptive Learning**
-- Records critical faults with voltage/frequency context
-- Sets per-unit maximum limits with safety margins
-- Maintains fault history (last 10 faults)
-- Respects learned limits in all future optimization decisions
-
-#### 3. Priority-Based Decision Making
-
-The engine uses a strict priority system to handle multiple conditions:
-
-| Priority | Condition | Frequency Action | Voltage Action | Rationale |
-|----------|-----------|-----------------|----------------|-----------|
-| **1** | Critical Fault | Safe baseline (min + 100MHz) | Safe baseline (min + 50mV) | Guaranteed safe recovery + learns adaptive limits |
-| **2** | Emergency (≥75°C) | Set to minimum | Set to minimum | Maximum cooling |
-| **3** | Soft Fault (VRM/Power) | -2× freqStep | Only if freq at min | Immediate throttle, frequency first |
-| **4** | Temp Danger (≥72°C) | -2× freqStep | -1× voltStep if needed | Aggressive cooling |
-| **5** | Temp Warning (≥68°C) | -1× freqStep | -1× voltStep only if freq at min | Gradual cooling |
-| **6a** | High Instability | -1× freqStep (if freq > min+buffer) | +1× voltStep only if freq low | Prefer freq reduction |
-| **6b** | Low Hash Performance | 0 | +1× voltStep (small bump) | Try voltage first for hash issues |
-| **7** | Optimal Temp + Freq Headroom | +1-1.5× freqStep (scaled by margin) | -1× voltStep if very stable | **Main optimization path** |
-| **8** | Low Efficiency | -1× freqStep | -1× voltStep only if freq at min | Efficiency tuning |
-| **9** | High Efficiency Headroom | +1× freqStep | 0 | Performance increase |
-| **10** | At Max V + Very Stable | 0 | -1× voltStep | Voltage pullback optimization |
-
-#### 4. Adjustment Actions
-
-**Frequency Scaling**
-- Increases in 10-15MHz steps when conditions are optimal
-- Scales increase rate based on temperature margin (1.5× faster if margin > 5°C)
-- Reduces by 10MHz (warning) or 20MHz (danger) for thermal issues
-- Always checks against **adaptive limits** before increasing
-
-**Voltage Balancing**
-- Small voltage bumps (+10mV) only when frequency reduction isn't viable
-- Voltage reduction attempts during voltage pullback optimization
-- Respects per-frequency voltage caps
-- Never exceeds learned adaptive limits
-
-**Stability Management**
-- Tracks consecutive stable cycles
-- Requires 5-30 stable cycles before allowing aggressive increases
-- Resets stability counter on any adjustment
-- Records "Last Known Good" state only at ≥80% of adaptive max frequency
-
-### Adaptive Per-Unit Limits
-
-**The Problem**: Hardware variance means some units can't reach the same limits as others. A unit with a marginal 5V power rail might fault at 1380mV/1200MHz, even though that's within spec for most units.
-
-**The Solution**: Automatic per-unit limit learning.
-
-#### How Adaptive Limits Work
-
-1. **Fault Detection & Confirmation**
-   - System detects critical fault (API fault, power fault, voltage out of range)
-   - Waits for 3 consecutive fault cycles (30s) to confirm not transient
-   - Records the exact voltage and frequency at which fault occurred
-
-2. **Limit Calculation with Safety Margins**
-   ```javascript
-   // Example: Unit faults at 1380mV / 1200MHz
-   Safety margins:
-   - Voltage: 2 × voltageStep = 20-30mV
-   - Frequency: 3 × freqStep = 30MHz
-   
-   New adaptive limits:
-   - maxVoltage: 1380mV - 20mV = 1360mV
-   - maxFreq: 1200MHz - 30MHz = 1170MHz
-   ```
-
-3. **Persistent Learning**
-   - Limits saved to `autotune_state.json`
-   - Survives restarts and redeployments
-   - Maintains fault history with timestamps and reasons
-
-4. **Enforcement**
-   - All optimization decisions respect adaptive limits
-   - Unit will never attempt to exceed learned safe values
-   - "Last Known Good" tracking considers adaptive limits
-   - Optimal state defined as ≥80% of adaptive max frequency
-
-#### Example Log Output
-**Auto-Tune Logs**
-![Auto-tune logs](Images/LiveLogsAutoTuningEngine.PNG)
-**Auto-Tune stabalizing**
-![Units stabalizing](Images/LiveLogsAutoTuningEngine02.PNG)
-**Auto-Tune Power fault detected, new hardware limits learned**
-![Power Fault Detected and new hardware limits learned](Images/PowerFaultConfirmedAndLearned.PNG)
-
-#### Use Cases for Adaptive Limits
-
-**Case 1: Weak 5V Power Rail**
-- **Problem**: Unit has 5V rail that sags under load, causing power faults at 1380mV/1200MHz
-- **Solution**: AutoTune learns limits are 1360mV/1170MHz, operates stably at 99% of other units' performance
-- **Result**: No constant faults, near-maximum hashrate maintained
-
-**Case 2: Poor Cooling Environment**
-- **Problem**: Unit in hot location can't reach maximum frequency without overheating
-- **Solution**: Repeated thermal faults teach the system this unit's thermal ceiling
-- **Result**: Unit optimizes to its environment, can be moved and limits reset later
-
-**Case 3: Mixed Hardware Quality**
-- **Problem**: Fleet of 10 units, 8 excellent, 2 marginal
-- **Solution**: 8 units reach config max, 2 learn their own slightly lower limits
-- **Result**: Zero manual intervention, each unit optimized individually
-
-**Case 4: Silicon Lottery Winners**
-- **Problem**: One unit has exceptional silicon, could run higher than config max
-- **Solution**: Manually set higher adaptive limits for that unit only
-- **Result**: Best chips pushed harder, average chips run at normal limits
-
-### Operation Modes
-
-#### Conservative Mode
-**Target Profile**: 24/7 uptime, efficiency-focused, minimal user intervention
-
-**Parameters**:
-- Voltage Range: 1150mV - 1250mV
-- Frequency Range: 450MHz - 575MHz
-- Temperature Target: 62°C
-- Temperature Warning: 67°C
-- Temperature Danger: 72°C
-- Target Efficiency: 16 J/TH
-- Max Error Rate: 5%
-- Adjustment Interval: 60 seconds
-
-**Characteristics**:
-- Lower thermal stress
-- Longer hardware lifespan
-- Reduced power consumption
-- Automatic efficiency optimization
-- Safe for passive cooling
-- Ideal for enclosed spaces
-
-#### Aggressive Mode
-**Target Profile**: Maximum hashrate, enthusiast-grade, active cooling required
-
-**Parameters**:
-- Voltage Range: 1150mV - 1380mV
-- Frequency Range: 675MHz - 1200MHz
-- Temperature Target: 71°C
-- Temperature Warning: 72°C
-- Temperature Danger: 73°C
-- Target Efficiency: None (prioritizes speed)
-- Max Error Rate: 0.25% configurable in config.json
-- Adjustment Interval: 30 seconds
-
-**Characteristics**:
-- Maximum hashrate potential
-- Higher power consumption
-- Increased heat generation
-- **Requires upgraded cooling** (larger heatsink or active fan)
-- Faster adjustment responses
-- Not recommended for stock cooling
-
-> [!WARNING]
-> **Aggressive Mode Cooling Requirements**: Heat generation increases exponentially with voltage. Running aggressive mode on stock cooling will trigger constant thermal throttling. Upgrade to a larger heatsink or add/upgrade fans before enabling aggressive mode. The AutoTune engine will attempt to learn the unit's thermal limits and adjust accordingly, but it cannot overcome fundamental cooling limitations, it also does not control onboard fans at this time.
-
-### Safety & Self-Healing Mechanisms
-
-#### Emergency Cooling
-**Trigger**: Core temperature ≥ 75°C
-**Action**: Immediate drop to minimum voltage and frequency
-**Recovery**: Gradual ramp-up after temperature normalizes
-**Purpose**: Prevent thermal damage to ASICs
-
-#### Critical Fault Recovery
-**Triggers**:
-- API reports power fault
-- Zero hashrate with power consumption > 10W
-- Input voltage out of range (< 4.8V or > 5.6V)
-- Impossible temperature drops (sensor glitch)
-
-**Confirmation**: Requires 3 consecutive fault cycles (30s)
-
-**Actions**:
-1. Learn adaptive limits from fault (voltage - 20mV, frequency - 30MHz)
-2. Log fault to history with timestamp and reason
-3. Revert to safe baseline (min + 50mV, min + 100MHz)
-4. Restart miner
-5. Lock out adjustments for 120 seconds (stabilization period)
-
-**Recovery**:
-- Gradual ramp from safe baseline
-- Respects newly learned adaptive limits
-- Never exceeds previously faulted settings
-
-#### Soft Fault Handling (VRM/Power Limits)
-**Triggers**:
-- VRM temperature ≥ 85°C (conservative) or 86°C (aggressive)
-- Power consumption exceeds configured limit
-
-**Action**: Immediate throttle (frequency -20MHz, voltage -10mV only if freq at min)
-**No Restart**: Handles gracefully without full restart
-**Purpose**: Prevent escalation to critical fault
-
-#### Stabilization Periods
-**When Applied**:
-- After restart: 120 seconds
-- After any adjustment: Until next adjustment interval
-- During fault confirmation: 30 seconds (3 cycles)
-
-**Purpose**: 
-- Prevent "chasing" transient spikes
-- Allow hardware to settle
-- Ensure measurements are accurate
-- Avoid oscillation between settings
-
-#### Temperature Glitch Detection
-**Detection**: Core temp drops > 25°C to below 40°C in one cycle
-**Likely Cause**: Sensor failure, firmware glitch, loose thermistor
-**Action**: Log warning, continue monitoring, do not react to impossible reading
-**Purpose**: Prevent inappropriate throttling due to sensor errors
-
-### Key Algorithm Improvements
-
-The current engine represents significant improvements over traditional auto-tuning approaches:
-
-#### 1. Frequency-First Philosophy
-"Always prefer frequency adjustments, use voltage surgically"
-- Result: High frequency operation, voltage only as needed
-- Key Insight: Frequency affects power/heat/stability; voltage mainly affects stability
-- Therefore: Use frequency as primary lever, voltage as fine-tuning
-
-#### 2. Nuanced Stability Response
-- High instability → Reduce frequency first (if headroom exists)
-- Only add voltage if frequency already low
-- Different severities get different responses
-- No one-way voltage ratchet effect
-
-#### 3. Relaxed Frequency Increase Logic
-- Reduced cooldown to 5 cycles after throttling, 2 cycles normally
-- Temperature margin consideration (won't increase if margin < 3°C)
-- Scaled increase rate (1.5× faster if margin > 5°C)
-- Simultaneous freq increase + voltage decrease when very stable
-
-#### 4. Smart Fault Recovery
-- Always revert to guaranteed-safe baseline
-- Learn from fault and set adaptive limits
-- Gradual climb from known-safe state
-- Never attempt failed settings again
-
-### 3. Smart Tuning Modes
-- **Aggressive**: Pushes frequency/voltage to the absolute limit (Priority 10).
-- **Conservative**: Prioritizes efficiency (J/TH) over raw hashrate.
-- **Cost Sensitive (NEW)**: Optimizes performance while strictly adhering to a daily budget.
-  - Set your electricity price ($/kWh) and max daily cost ($).
-  - **How to Config**: Select "Cost Sensitive" from the dropdown on the miner card. Input fields for Price and Daily Limit will appear directly on the card.
-  - The miner runs as fast as possible without exceeding your budget.
-  - *Example: "Give me max hashrate, but don't spend more than $1.00/day."*
-
-#### 4. Smart Acceleration (Adaptive Steps)
-**Before**:
-- Fixed 10MHz steps regardless of potential
-- Slow to reach high frequencies (e.g., 600 -> 1200MHz took hours)
-
-**Now**:
-- Variable step sizing based on distance to target
-- **4x Speed** (+40MHz) when >100MHz from limit
-- **2x Speed** (+20MHz) when >50MHz from limit
-- **Precision** (+10MHz) when approaching limit
-- Result: Reaches optimal range 4-5x faster while maintaining safety
-
-### 5. "Last Known Good" Tracking
-- Only records truly optimal states (30 cycles, < 1% error, ≥80% of adaptive max freq)
-- Ensures "good" state is actually high-performance
-- Considers adaptive limits, not just config limits
-
-
-### Configuration Recommendations
-
-#### For Better Frequency Retention
-
-```json
-{
-  "AUTOTUNE": {
-    "conservative": {
-      "tempTarget": 63,
-      "tempWarning": 68,
-      "tempDanger": 72,
-      "maxErrorRate": 0.03,
-      "freqStep": 15,
-      "voltageStep": 10
-    },
-    "aggressive": {
-      "tempTarget": 72,
-      "tempWarning": 73,
-      "tempDanger": 74,
-      "maxErrorRate": 0.20,
-      "freqStep": 15,
-      "voltageStep": 10
-    }
-  }
-}
-```
-
-**Changes Explained**:
-- **tempTarget**: Slightly higher to provide more thermal headroom for freq increases
-- **maxErrorRate**: Slightly stricter to prevent instability before it becomes critical
-- **freqStep**: Larger steps for faster recovery after throttling
-
-#### Safety Margin Tuning
-
-Edit in code if needed:
-```javascript
-// In fault handling section
-const safetyMarginV = config.voltageStep * 2; // Default: 20-30mV
-const safetyMarginF = config.freqStep * 3;    // Default: 30MHz
-```
-
-**More Conservative** (larger margins):
-- Reduces risk of repeated faults
-- May leave some performance on the table
-- Better for production/critical environments
-
-**More Aggressive** (smaller margins):
-- Pushes closer to true hardware limits
-- May cause occasional faults while finding exact limit
-- Better for testing/optimization phases
-
-### Monitoring & Diagnostics
-
-#### Understanding Log Output
-
-**New Enhanced Format**:
-```
-[AutoTune] 192.168.1.100: 1200mV/575MHz -> 1200mV/590MHz 
-  (Action: increase_freq, Temp: 60°C, Margin: 3.0°C, 
-   Error: 0.45%, Stable: 12)
-```
-
-**Key Metrics**:
-- **Margin**: Temperature headroom (target - actual). Aim for 3-8°C
-- **Error**: Smoothed error rate over last 5 cycles
-- **Stable**: Consecutive stable cycles (higher = more confident in settings)
-
-**Heartbeat Logs** (every ~1 minute when stable):
-```
-[AutoTune] 192.168.1.100: 1200mV/575MHz (60°C, Δ3.0°C, 0.45%, 15.2J/TH, Stable: 45, conservative)
-```
-
-Shows current state including efficiency (if in conservative mode).
-
-#### Good Signs ✅
-- `increase_freq` actions happening regularly
-- `increase_freq_reduce_voltage` (simultaneous optimization!)
-- Stable count increasing (10, 20, 30+)
-- Temperature margin steady at 3-8°C
-- Error rate consistently < 1%
-- Voltage NOT at maximum for extended periods
-
-#### Warning Signs ⚠️
-- Frequent `increase_stability_voltage` (stability issues)
-- `instability_throttle_freq` repeating (hardware or cooling problem)
-- Stable count never exceeding 10 (constant adjustments)
-- Temperature margin < 1°C (too aggressive for cooling)
-- Multiple fault cycles for same unit
-- Adaptive limits significantly below config limits
-
-#### Bad Signs ❌
-- Voltage at maximum for > 1 hour
-- Frequency stuck at minimum
-- Constant fault → restart → fault loop
-- Temperature margin negative (exceeding target)
-- Error rate > 5% sustained
-- Multiple units learning adaptive limits (systemic issue)
-
-#### API Endpoints for Adaptive Limits
-
-```javascript
-// Get adaptive limits for specific miner
-GET /api/autotune/:ip/adaptive-limits
-Response: {
-  "ip": "192.168.1.197",
-  "adaptive": { "maxVoltage": 1360, "maxFreq": 1170, "faultHistory": [...] },
-  "config": { "maxVoltage": 1380, "maxFreq": 1200 },
-  "reduction": { "voltage": 20, "frequency": 30 },
-  "isLimited": true
-}
-
-// Reset adaptive limits to config defaults
-POST /api/autotune/:ip/adaptive-limits/reset
-
-// Manually set adaptive limits
-PUT /api/autotune/:ip/adaptive-limits
-Body: { "maxVoltage": 1350, "maxFreq": 1150 }
-
-// Get summary of all miners
-GET /api/autotune/adaptive-limits/summary
-Response: {
-  "totalMiners": 4,
-  "limitedMiners": 1,
-  "miners": [...]
-}
-```
 ---
 
 ## Tips / Donations
@@ -725,8 +284,8 @@ Found this useful? Tips are never required but appreciated!
 ### Voltage/Frequency Ranges
 | Mode | Voltage Range | Frequency Range | Step Sizes |
 |------|---------------|-----------------|------------|
-| Conservative | 1150-1250mV | 450-575MHz | 10mV / 10-15MHz |
-| Aggressive | 1150-1380mV | 675-1200MHz | 10-15mV / 10-15MHz |
+| Conservative | 1150-1250mV | 450-575MHz | 10mV / 10MHz |
+| Aggressive | 1150-1380mV | 675-1200MHz | 2.8mV / 6.25MHz |
 
 ### Adjustment Intervals
 | Mode | Interval | Cooldown After Throttle |
