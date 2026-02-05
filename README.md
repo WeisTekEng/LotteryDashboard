@@ -9,7 +9,7 @@ This dashboard is designed to work with both Bitaxe and NerdMiner hardware, howe
 | Device | Asic | Voltage | Firmware | Confirmed Working |
 |---|---|---|---|---|
 | Bitaxe Gamma 601 | BM1370 | 5V | 2.12.0 | Yes |
-| NerdQAxe++ | BM1370 | 12V | 2.12.0 | Testing |
+| NerdQAxe++ | BM1370 | 12V | 2.12.0 | Testing - Testers needed|
 
 **About**
 This is a local dashboard to monitor and configure your LotteryMiner fleet via UDP and REST API. It supports Bitcoin (BTC) and Bitcoin Cash (BCH) mining stats and serves as a central hub for real-time monitoring and autonomous optimization.
