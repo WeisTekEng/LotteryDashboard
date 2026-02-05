@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   app:
-    image: LotteryMinerDashboard-windows
+    image: AATEMinerDashboard-windows
     build: .
     restart: unless-stopped
     ports:
