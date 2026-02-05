@@ -9,7 +9,9 @@ This dashboard is designed to work with both Bitaxe and NerdMiner hardware, howe
 | Device | Asic | Voltage | Firmware | Confirmed Working |
 |---|---|---|---|---|
 | Bitaxe Gamma 601 | 1 x BM1370 | 5V | 2.12.0 | Yes |
-| NerdQAxe++ | 4 x BM1370 | 12V | 2.12.0 | Testers needed |
+| NerdQAxe++ rev5.1 (with Mods) | 4 x BM1370 | 12V | 2.12.0 | Testing |
+| NerdQAxe++ rev5.1 | 4 x BM1370 | 12V | 2.12.0 | Testers needed |
+| NerdQAxe++ rev6+ | 4 x BM1370 | 12V | 2.12.0 | Testers needed |
 | BitAxe GT 800 | 2 x BM1370 | 12V | 2.12.0 | Testing - Testers needed |
 
 **About**
