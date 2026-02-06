@@ -92,7 +92,8 @@ There are a few ways to run this using docker, if your on windows use docker des
     ```bash
     docker build -t aateminerdashboard .
     ```
-    Be sure to bind the ports to your host machine.
+3.  **Run the image**
+    this will run the image in the background and bind the ports to your host machine.
     ```bash
     docker run -d -p 3000:3000 -p 33333:33333/udp --name aateminerdashboard aateminerdashboard
     ```
