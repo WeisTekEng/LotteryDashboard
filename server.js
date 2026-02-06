@@ -123,9 +123,8 @@ app.post('/miners/:ip/metadata', (req, res) => {
     if (autoTune === 'off') {
       autoTuneStates.delete(ip);
     } else {
-      autoTuneStates.set(ip, {
-        enabled: true,
-        mode: autoTune,
+      // Preserve existing state if present, or create new
+      const existingState = autoTuneStates.get(ip) || {
         lastAdjustment: 0,
         tempHistory: [],
         currentVoltage: null,
@@ -136,7 +135,16 @@ app.post('/miners/:ip/metadata', (req, res) => {
         stableCycleCount: 0,
         lastAction: 'maintain',
         stabilizationUntil: 0,
-        restarting: false
+        restarting: false,
+        faultHistory: []
+      };
+
+      autoTuneStates.set(ip, {
+        ...existingState,
+        enabled: true,
+        mode: autoTune,
+        kwhPrice: req.body.kwhPrice ? parseFloat(req.body.kwhPrice) : existingState.kwhPrice,
+        dailyCostLimit: req.body.dailyCostLimit ? parseFloat(req.body.dailyCostLimit) : existingState.dailyCostLimit
       });
     }
   }
@@ -184,6 +192,10 @@ app.post('/api/config', (req, res) => {
     fs.writeFileSync(configPath, JSON.stringify(cleanOverrides, null, 2));
 
     console.log('[Config] Configuration updated and saved to data/config.json');
+
+    // Trigger immediate scan if networking/subnet might have changed
+    scannerService.runNetworkScan().catch(err => console.error('[Scanner] Manual trigger failed:', err));
+
     res.json({ success: true, restartRequired: !!newConfig.PORTS });
   } catch (e) {
     console.error('[Config] Failed to save config:', e.message);
@@ -289,10 +301,11 @@ app.get('/api/autotune/adaptive-limits/summary', (req, res) => {
         adaptive: limits.adaptiveLimits,
         config: limits.configLimits,
         isLimited,
-        faultCount: limits.adaptiveLimits.faultHistory?.length || 0,
-        lastFault: limits.adaptiveLimits.faultHistory?.length > 0
-          ? limits.adaptiveLimits.faultHistory[limits.adaptiveLimits.faultHistory.length - 1]
-          : null
+        faultCount: limits.faultHistory?.length || 0,
+        lastFault: limits.faultHistory?.length > 0
+          ? limits.faultHistory[limits.faultHistory.length - 1]
+          : null,
+        faultHistory: limits.faultHistory || []
       });
     }
   });

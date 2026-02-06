@@ -1,4 +1,5 @@
 const os = require('os');
+const CONFIG = require('../config');
 
 class ScannerService {
     constructor(minerService) {
@@ -39,7 +40,20 @@ class ScannerService {
     }
 
     async runNetworkScan() {
-        const subnets = this.getLocalSubnets();
+        // Use manually configured subnet if available (supports Docker bridge mode)
+        const manualSubnet = CONFIG.PORTS.SCAN_SUBNET;
+        let subnets = [];
+
+        if (manualSubnet) {
+            // Handle "192.168.1.0/24" or just "192.168.1"
+            let base = manualSubnet.split('/')[0];
+            const parts = base.split('.');
+            if (parts.length === 4) parts.pop(); // Remove last octet if full IP provided
+            if (parts.length === 3) subnets = [parts.join('.')];
+        } else {
+            subnets = this.getLocalSubnets();
+        }
+
         console.log(`[Scanner] Starting scan on subnets: ${subnets.join(', ')}`);
         for (const subnet of subnets) {
             const promises = [];

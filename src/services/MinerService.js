@@ -55,6 +55,8 @@ class MinerService {
                 miner: settings.name || data.ASICModel || 'Bitaxe',
                 coin: coinType,
                 autoTune: autoTuneEntry ? autoTuneEntry.mode : 'off',
+                kwhPrice: autoTuneEntry ? autoTuneEntry.kwhPrice : null,
+                dailyCostLimit: autoTuneEntry ? autoTuneEntry.dailyCostLimit : null,
                 hashrate: (data.hashRate * 1000000).toFixed(2),
                 temp: data.temp.toFixed(1),
                 vrTemp: data.vrTemp ? data.vrTemp.toFixed(1) : null,

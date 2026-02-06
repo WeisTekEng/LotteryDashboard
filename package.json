@@ -1,5 +1,5 @@
 {
-  "name": "nerdminer-dashboard",
+  "name": "AATEMinerDashboard",
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {

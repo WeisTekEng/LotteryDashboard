@@ -46,6 +46,7 @@ function updateCardHTML(miner) {
                     <option value="off" ${autoTuneMode === 'off' ? 'selected' : ''}>Off</option>
                     <option value="conservative" ${autoTuneMode === 'conservative' ? 'selected' : ''}>Conservative</option>
                     <option value="aggressive" ${autoTuneMode === 'aggressive' ? 'selected' : ''}>Aggressive (Warning!)</option>
+                    <option value="cost_sensitive" ${autoTuneMode === 'cost_sensitive' ? 'selected' : ''}>Cost Sensitive</option>
                 </select>
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
                     <label style="font-size: 0.75rem; color: #94a3b8;">Coin:</label>
@@ -56,6 +57,30 @@ function updateCardHTML(miner) {
                 </div>
             </div>
             ${autoTuneMode === 'aggressive' ? '<div style="color: #ef4444; font-size: 0.7rem; font-weight: 700; text-align: center; width: 100%; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 4px; border-radius: 4px;">⚠️ RISK OF HARDWARE DAMAGE</div>' : ''}
+            ${autoTuneMode === 'cost_sensitive' ? `
+                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center; justify-content: space-between;">
+                    <div style="flex: 1;">
+                        <input type="number" id="cost-kwh-${miner.ip}" placeholder="$/kWh" value="${miner.kwhPrice || ''}" step="0.01"
+                            onchange="saveCostFromInline('${miner.ip}')"
+                            title="Electricity Price ($/kWh)"
+                            style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 4px; padding: 4px; font-size: 0.75rem;">
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="number" id="cost-limit-${miner.ip}" placeholder="Limit $" value="${miner.dailyCostLimit || ''}" step="0.01"
+                            onchange="saveCostFromInline('${miner.ip}')"
+                            title="Max Daily Cost ($)"
+                            style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 4px; padding: 4px; font-size: 0.75rem;">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                    <div style="font-size: 0.65rem; color: #64748b;">Enter Price & Limit</div>
+                    ${(miner.power && miner.kwhPrice) ? `
+                        <div style="font-size: 0.75rem; font-weight: 600; color: ${(parseFloat(miner.power) / 1000 * 24 * parseFloat(miner.kwhPrice) > (parseFloat(miner.dailyCostLimit) || 0)) ? '#ef4444' : '#10b981'};">
+                            Est: $${((parseFloat(miner.power) / 1000) * 24 * 30 * parseFloat(miner.kwhPrice)).toFixed(2)}/mo
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
         </div>
     ` : '';
 
@@ -162,6 +187,12 @@ function render() {
             card = createCard(key);
             targetGrid.appendChild(card);
         }
+
+        // Skip update if user is typing in this card
+        if (card.contains(document.activeElement)) {
+            return;
+        }
+
         card.innerHTML = updateCardHTML(miner);
     });
 

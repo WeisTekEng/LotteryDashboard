@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NerdMiner Dashboard</title>
+    <title>Adaptive Auto-Tuning Miner Dashboard</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Lottery Miner Dashboard</h1>
+            <h1>Adaptive Auto-Tuning Miner Dashboard</h1>
             <div style="position: relative;">
                 <button onclick="toggleMenu()" class="btn-icon"
                     style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; border: none; color: white; cursor: pointer;">
@@ -483,6 +483,29 @@
                         </select>
                         <small style="color: #64748b; display: block; margin-top: 4px;">What coin does the fallback pool
                             mine?</small>
+                    </div>
+
+                    <div class="form-group" style="padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <label class="form-label">Auto-Tune Engine</label>
+                        <select id="configAutoTune" class="form-input"
+                            style="background: rgba(15, 23, 42, 0.6); color: white;" onchange="toggleCostFields()">
+                            <option value="off">Off (Manual Control)</option>
+                            <option value="conservative">Conservative (Efficiency)</option>
+                            <option value="aggressive">Aggressive (Performance)</option>
+                            <option value="cost_sensitive">Cost Sensitive</option>
+                        </select>
+                    </div>
+
+                    <div id="costFields"
+                        style="display: none; padding-left: 1rem; border-left: 2px solid #10b981; margin-top: 0.5rem;">
+                        <div class="form-group">
+                            <label class="form-label">Electricity Price ($/kWh)</label>
+                            <input type="number" id="configKwhPrice" class="form-input" placeholder="0.12" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max Daily Cost ($)</label>
+                            <input type="number" id="configDailyCost" class="form-input" placeholder="1.50" step="0.01">
+                        </div>
                     </div>
                 </form>
             </div>

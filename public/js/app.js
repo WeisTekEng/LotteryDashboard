@@ -95,9 +95,33 @@ async function openConfigModal(ip) {
         document.getElementById('configCoin').value = (knownMiner && knownMiner.coin) ? knownMiner.coin : 'BTC';
         document.getElementById('configFallbackCoin').value = (knownMiner && knownMiner.fallbackCoin) ? knownMiner.fallbackCoin : '';
 
+        // Populate Auto-Tune settings
+        if (GlobalAutoTuneData && GlobalAutoTuneData.miners) {
+            const atData = GlobalAutoTuneData.miners.find(m => m.ip === ip);
+            const atMode = atData ? atData.mode : 'off';
+            document.getElementById('configAutoTune').value = atMode;
+
+            if (atMode === 'cost_sensitive') {
+                // We need to fetch the cost settings since they aren't in the summary list usually
+                // For now, we'll try to get them if available or default empty
+                // In a real implementation we might need to fetch /api/autotune/:ip/adaptive-limits to get full config
+                // But for now, let's assume we can get them from the global data if I update the server to send them
+            }
+            // Trigger toggle to show/hide fields
+            toggleCostFields();
+        }
+
     } catch (e) {
         alert('Error loading configuration: ' + e.message);
         closeConfigModal();
+    }
+}
+
+function toggleCostFields() {
+    const mode = document.getElementById('configAutoTune').value;
+    const fields = document.getElementById('costFields');
+    if (fields) {
+        fields.style.display = mode === 'cost_sensitive' ? 'block' : 'none';
     }
 }
 
@@ -142,7 +166,11 @@ async function saveConfig() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     coin: document.getElementById('configCoin').value,
-                    fallbackCoin: document.getElementById('configFallbackCoin').value || null
+                    fallbackCoin: document.getElementById('configFallbackCoin').value || null,
+                    // Send Auto-Tune config here as it's part of the dashboard's extended metadata/config
+                    autoTune: document.getElementById('configAutoTune').value,
+                    kwhPrice: document.getElementById('configKwhPrice').value,
+                    dailyCostLimit: document.getElementById('configDailyCost').value
                 })
             });
         } catch (err) {
@@ -722,7 +750,7 @@ function renderAutoTuneView() {
 
     autoTuneData.miners.forEach(miner => {
         if (miner.faultCount > 0) {
-            const recentFaults = (miner.adaptive.faultHistory || []).filter(f => f.timestamp > dayAgo);
+            const recentFaults = (miner.faultHistory || []).filter(f => f.timestamp > dayAgo);
             totalRecentFaults += recentFaults.length;
         }
 
@@ -768,7 +796,7 @@ function createAutoTuneMinerCard(miner) {
 
     // Recent faults (last 24h)
     const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
-    const recentFaults = (miner.adaptive.faultHistory || []).filter(f => f.timestamp > dayAgo);
+    const recentFaults = (miner.faultHistory || []).filter(f => f.timestamp > dayAgo);
 
     return `
         <div class="miner-card">
@@ -822,6 +850,36 @@ function createAutoTuneMinerCard(miner) {
                     </div>
                 </div>
             </div>
+
+            <!-- Cost Stats for Cost Sensitive Mode -->
+            ${miner.mode === 'cost_sensitive' ? (() => {
+            const globalMiner = Object.values(miners).find(m => m.ip === miner.ip);
+            const power = globalMiner ? parseFloat(globalMiner.power) : 0;
+            const price = parseFloat(miner.config.kwhPrice) || 0;
+            const limit = parseFloat(miner.config.dailyCostLimit) || 0;
+            const dailyCost = (power / 1000) * 24 * price;
+            const monthlyCost = dailyCost * 30;
+            const isOver = dailyCost > limit;
+            return `
+                <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Cost Constraints</div>
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-item">
+                            <span class="stat-label">Price/kWh</span>
+                            <span class="stat-value">$${price.toFixed(2)}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Daily Limit</span>
+                            <span class="stat-value">$${limit.toFixed(2)}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Est. Monthly</span>
+                            <span class="stat-value" style="color: ${isOver ? '#ef4444' : '#10b981'};">$${monthlyCost.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+                `;
+        })() : ''}
 
             <!-- Adaptive Limits -->
             <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -1001,4 +1059,66 @@ switchView = function (viewName) {
     if (menu) {
         menu.style.display = 'none';
     }
-};
+}
+
+// Missing UI Helper Functions called by ui.js
+
+async function toggleAutotune(ip, mode) {
+    // Apply mode immediately
+    try {
+        await fetch(`/miners/${ip}/metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                autoTune: mode
+            })
+        });
+    } catch (e) {
+        alert('Failed to update Auto-Tune mode: ' + e.message);
+    }
+}
+
+async function saveCostFromInline(ip) {
+    const priceInput = document.getElementById(`cost-kwh-${ip}`);
+    const limitInput = document.getElementById(`cost-limit-${ip}`);
+
+    if (!priceInput || !limitInput) return;
+
+    try {
+        await fetch(`/miners/${ip}/metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                autoTune: 'cost_sensitive',
+                kwhPrice: priceInput.value,
+                dailyCostLimit: limitInput.value
+            })
+        });
+
+        // Visual feedback?
+        priceInput.style.borderColor = '#10b981';
+        limitInput.style.borderColor = '#10b981';
+        setTimeout(() => {
+            if (priceInput) priceInput.style.borderColor = 'rgba(255,255,255,0.1)';
+            if (limitInput) limitInput.style.borderColor = 'rgba(255,255,255,0.1)';
+        }, 1000);
+
+    } catch (e) {
+        console.error('Failed to save cost settings', e);
+        alert('Failed to save settings');
+    }
+}
+
+async function updateMinerCoin(ip, coin) {
+    try {
+        await fetch(`/miners/${ip}/metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                coin: coin
+            })
+        });
+    } catch (e) {
+        alert('Failed to update coin: ' + e.message);
+    }
+}

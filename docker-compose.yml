@@ -1,12 +1,12 @@
-version: '3.7'
-
 services:
   app:
-    image: lotteryminerdashboard
+    image: aateminerdashboard
     restart: unless-stopped
-    network_mode: "host"
+    environment:
+      - SCAN_SUBNET=192.168.1.0/24 # Optional: Manually set subnet if Docker network_mode is not host
     ports:
-      - "3000:3000/tcp"
-      - "33333:33333/udp"
+      - "3000:3000/tcp" #dashboard port
+      - "33333:33333/udp" #udp port for miner discovery
     volumes:
-      - /home/umbrel/umbrel/app-data/dashboard-data/data:/app/data
+      - ./data:/app/data
+      #- /home/umbrel/umbrel/app-data/dashboard-data/data:/app/data #only for use in a vm.

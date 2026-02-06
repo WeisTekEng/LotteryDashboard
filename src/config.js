@@ -4,7 +4,8 @@ const fs = require('fs');
 const DEFAULT_CONFIG = {
     PORTS: {
         UDP: 33333,
-        HTTP: 3000
+        HTTP: 3000,
+        SCAN_SUBNET: process.env.SCAN_SUBNET || null // e.g. "192.168.1.0/24" or "192.168.1"
     },
     FILES: {
         MINERS: path.join(__dirname, '..', 'data', 'miners.json'),
@@ -18,7 +19,7 @@ const DEFAULT_CONFIG = {
         SCAN_INTERVAL: 120000, // 2 minutes
         POLL_INTERVAL: 5000, // 5 seconds
         AUTOTUNE_LOOP_INTERVAL: 10000, // 10 seconds
-        STATS_FETCH_INTERVAL: 60000 // 60 seconds
+        STATS_FETCH_INTERVAL: 60000, // 60 seconds
     },
     AUTOTUNE: {
         conservative: {
@@ -41,19 +42,39 @@ const DEFAULT_CONFIG = {
             maxInputVolts: 5600,
             maxWatts: 40
         },
+        cost_sensitive: {
+            minVoltage: 1150,
+            maxVoltage: 1380,
+            minFreq: 450,
+            maxFreq: 800,
+            voltageStep: 10,
+            freqStep: 10,
+            adjustInterval: 60000,
+            tempTarget: 68,
+            tempWarning: 72,
+            tempDanger: 75,
+            targetEfficiency: null,
+            maxErrorRate: 0.03,
+            recoveryVoltage: 1150,
+            recoveryFreq: 500,
+            maxVrTemp: 95,
+            minInputVolts: 4800,
+            maxInputVolts: 5600,
+            maxWatts: 50
+        },
         aggressive: {
             minVoltage: 1150,
             maxVoltage: 1380,
             minFreq: 675,
             maxFreq: 1200,
-            voltageStep: 15,
-            freqStep: 10,
+            voltageStep: 2.8125,
+            freqStep: 6.25,
             adjustInterval: 30000,
             tempTarget: 71,
             tempWarning: 72,
             tempDanger: 73,
             targetEfficiency: null,
-            maxErrorRate: 0.25,
+            maxErrorRate: 0.01, // Ratio 1-0 0.75% = 0.0075
             recoveryVoltage: 1150,
             recoveryFreq: 800,
             maxVrTemp: 105,
