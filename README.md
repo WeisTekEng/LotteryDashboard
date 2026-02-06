@@ -152,12 +152,14 @@ This app is ready for Umbrel, Although not available yet on the umbrel app store
 8.  Wait for the container to start
 9.  Navigate to `http://localhost:3000` to access the dashboard
 10. Once the page has loaded, go to the dashboard settings page, under Dashboard Network set SCAN_SUBNET to the subnet of your local network, this will allow the dashboard to scan for miners on your network.
-11. You can expose the dashboard via [Tailscale](https://tailscale.com/) if you want to access it from other devices or from outside your home network, the UI is built to work with both desktop and mobile devices. you can find the quickstart guide for setting up tailscale [here](https://tailscale.com/quickstart/).
 
 ![Portainer](Images/PortainerAddContainer.PNG)
 
 ### Persistent Configuration (Editing Settings)
 I have not been successful in getting persistance to work with Portainer in umbrel.
+
+### Exposing the dashboard via Tailscale
+You can expose the dashboard via [Tailscale](https://tailscale.com/) if you want to access it from other devices or from outside your home network, the UI is built to work with both desktop and mobile devices. you can find the quickstart guide for setting up tailscale [here](https://tailscale.com/quickstart/).
 
 ### Advanced Configuration (config.json)
 
