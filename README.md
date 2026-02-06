@@ -139,9 +139,9 @@ There are a few ways to run this using docker, if your on windows use docker des
 
 ### (Option 5) Umbrel
 This app is ready for Umbrel, Although not available yet on the umbrel app store, you can use portainer to install and run it.
+
 **Using portainer**
 
-#### Method 1 (Recommended)
 1.  Install Portainer from the Umbrel app store
 2.  Once in Portainer, navigate to the environment usualy named **primary** you want to run this container in, 
 3.  click on **connect** 
