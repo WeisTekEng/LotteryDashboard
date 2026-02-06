@@ -1,4 +1,4 @@
-# LotteryMiner Dashboard With an AATE (Adaptive Auto-Tuning Engine)
+# Lottery Miner Dashboard With an AATE (Adaptive Auto-Tuning Engine)
 **Disclaimer**
 This software is a work in progress, although I do all of my own testing on my own hardware i will not be held responsible for any damage to you or your hardware as a result of using this software.
 
@@ -66,7 +66,7 @@ The dashboard includes a "Live Logs" page for real-time monitoring:
 
 ## Installation and use
 
-### Non-Docker Setup run straight from the repo on your computer.
+### (Option 1) Non-Docker Setup run straight from the repo on your computer.
 1.  **Clone this repos master branch**
     ```bash
     git clone https://github.com/WeisTekEng/LotteryDashboard.git
@@ -84,7 +84,7 @@ The dashboard includes a "Live Logs" page for real-time monitoring:
 
 ### Docker & Umbrel Support
 
-#### running the docker image
+#### (Option 2) running the docker image
 There are a few ways to run this using docker, if your on windows use docker desktop
 1.  Install docker desktop from https://www.docker.com/products/docker-desktop/ or do a google search for docker desktop
     if you don't trust links.
@@ -99,55 +99,65 @@ There are a few ways to run this using docker, if your on windows use docker des
     ```
     *Uses port mapping. Access at http://localhost:3000*
 
-#### Pull the image from dockerhub
+#### (Option 3) Pull the image from dockerhub using the command line
 1.  **Pull the image**
     ```bash
     docker pull ocybress/aateminerdashboard:latest
     ```
-2.  **Run the image**
+2.  **Run the image without persistence**
     ```bash
     docker run -d -p 3000:3000 -p 33333:33333/udp --name aateminerdashboard ocybress/aateminerdashboard:latest
     ```
-3.  **Access Dashboard**
-    Open your browser and navigate to `http://localhost:3000`.    
+3.  **Run the image with persistence**
+    Be sure to replace `/path/to/data` with the path to a directory you want to use for persistence.
+    ```bash
+    docker run -d -p 3000:3000 -p 33333:33333/udp --name aateminerdashboard -v /path/to/data:/app/data ocybress/aateminerdashboard:latest
+    ```
+4.  **Access Dashboard**
+    Open your browser and navigate to `http://localhost:3000`.
 
-**Note:** UDP broadcasts from miners may not reach the container on Windows due to Docker's networking limitations. For full functionality, deploy on Linux/Umbrel.
+#### (Option 4) Pull the image from dockerhub using docker desktop
+1.  Open docker desktop
+2.  Navigate to the Docker Hub tab
+3.  Search for `aateminerdashboard`
+4.  Click on the pull button    
+5.  Wait for the image to pull
+6.  Navigate to the Images tab
+7.  Click on the run button
+8.  a `Run a new container` window will appear
+9.  Click on the Optional settings dropdown
+10. Name the container.
+11. Add the host ports `3000:3000` TCP and `33333:33333` UDP
+12. ** for persistence ** click the three dots in the host path and select the data directory.
+13. Enter `/app/data` in the container path.
+14. Click the deploy button.
+15. Wait for the container to start.
+16. Navigate to `http://localhost:3000` to access the dashboard.
+17. Once the page has loaded, go to the dashboard settings page, under Dashboard Network set SCAN_SUBNET to the subnet of your local network, this will allow the dashboard to scan for miners on your network.
 
-### Umbrel
+**Note:** [Nerdminers] UDP broadcasts from miners may not reach the container on Windows due to Docker's networking limitations. For full functionality, deploy on Linux/Umbrel.
+
+### (Option 5) Umbrel
 This app is ready for Umbrel, Although not available yet on the umbrel app store, you can use portainer to install and run it.
-**There are two ways to install this using portainer**
+**Using portainer**
 
 #### Method 1 (Recommended)
 1.  Install Portainer from the Umbrel app store
 2.  Once in Portainer, navigate to the environment usualy named **primary** you want to run this container in, 
 3.  click on **connect** 
 4.  then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
-5.  For docker.io images, use the repo name and tag you used when running push_release.ps1. For example `ocybress/nerdminer-dashboard-linux:r0.0.15` you can also use `ocybress/nerdminer-dashboard-linux:latest` since i will always be on the latest version, but i recommend building your own as i may be testing features on the latest version.
+5.  For docker.io images, you can pull my latest image from dockerhub `ocybress/aateminerdashboard:latest` or visit the repo on dockerhub at https://hub.docker.com/r/ocybress/aateminerdashboard to see the tags and pull the feature banches or dev branch.
 6.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
-7.  in Advanced Container settings under Networking make sure Network is set to **host**.
-8.  Click "deploy the container"
-9.  Wait for the container to start
-10. Navigate to `http://localhost:3000` to access the dashboard
-11. You can expose this via Tailscale if you want to access it from other devices or from outside your home network, the UI 
-    is built to work with both desktop and mobile devices.
+7.  Click "deploy the container"
+8.  Wait for the container to start
+9.  Navigate to `http://localhost:3000` to access the dashboard
+10. Once the page has loaded, go to the dashboard settings page, under Dashboard Network set SCAN_SUBNET to the subnet of your local network, this will allow the dashboard to scan for miners on your network.
+11. You can expose the dashboard via [Tailscale](https://tailscale.com/) if you want to access it from other devices or from outside your home network, the UI is built to work with both desktop and mobile devices. you can find the quickstart guide for setting up tailscale [here](https://tailscale.com/quickstart/).
 
 ![Portainer](Images/PortainerAddContainer.PNG)
 
-#### Method 2 (Advanced)
-**This is a work in progress as umbrel is a pain to get volumes or custom directorys working in my experience, but i will get there. I'm probably missing something obvious.**
-
 ### Persistent Configuration (Editing Settings)
-**From my testing the configurations etc appear to be persistent even without volumes, I will confirm this. If you want to be sure or want to edit the config files manually, you can use the following method:**
-This "should" work but im having issues with umbrel and the container not saving data to a specified location even if i 
-use a bind mount.
-To ensure your settings are saved when the container restarts and to allow manual editing of configuration files:
-1.  In Portainer, during container creation (or under "Duplicate/Edit"), go to the **Volumes** tab.
-2.  Click **+ map additional volume**.
-3.  **Container path**: `/app/data`
-4.  **Host path** (or Volume): 
-    - Select **Bind** (important for easy file access).
-    - Enter a path for your data on the host, for example: `/home/umbrel/lottery-data`.
-5.  This allows you to edit settings directly from your host filesystem. Settings will persist exactly in that folder even if the container is deleted.
+I have not been successful in getting persistance to work with Portainer in umbrel.
 
 ### Advanced Configuration (config.json)
 
