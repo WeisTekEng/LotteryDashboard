@@ -4,7 +4,8 @@ services:
   app:
     image: AATEMinerDashboard
     restart: unless-stopped
-    #network_mode: "host" #uncomment this if your running in a vm, otherwise the container will not listin on the proper subnet.
+    environment:
+      - SCAN_SUBNET=192.168.1.0/24 # Optional: Manually set subnet if Docker network_mode is not host
     ports:
       - "3000:3000/tcp" #dashboard port
       - "33333:33333/udp" #udp port for miner discovery

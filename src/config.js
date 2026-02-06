@@ -4,7 +4,8 @@ const fs = require('fs');
 const DEFAULT_CONFIG = {
     PORTS: {
         UDP: 33333,
-        HTTP: 3000
+        HTTP: 3000,
+        SCAN_SUBNET: process.env.SCAN_SUBNET || null // e.g. "192.168.1.0/24" or "192.168.1"
     },
     FILES: {
         MINERS: path.join(__dirname, '..', 'data', 'miners.json'),
@@ -18,7 +19,7 @@ const DEFAULT_CONFIG = {
         SCAN_INTERVAL: 120000, // 2 minutes
         POLL_INTERVAL: 5000, // 5 seconds
         AUTOTUNE_LOOP_INTERVAL: 10000, // 10 seconds
-        STATS_FETCH_INTERVAL: 60000 // 60 seconds
+        STATS_FETCH_INTERVAL: 60000, // 60 seconds
     },
     AUTOTUNE: {
         conservative: {

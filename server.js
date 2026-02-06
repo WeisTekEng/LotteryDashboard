@@ -192,6 +192,10 @@ app.post('/api/config', (req, res) => {
     fs.writeFileSync(configPath, JSON.stringify(cleanOverrides, null, 2));
 
     console.log('[Config] Configuration updated and saved to data/config.json');
+
+    // Trigger immediate scan if networking/subnet might have changed
+    scannerService.runNetworkScan().catch(err => console.error('[Scanner] Manual trigger failed:', err));
+
     res.json({ success: true, restartRequired: !!newConfig.PORTS });
   } catch (e) {
     console.error('[Config] Failed to save config:', e.message);
