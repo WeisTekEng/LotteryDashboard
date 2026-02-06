@@ -90,11 +90,25 @@ There are a few ways to run this using docker, if your on windows use docker des
     if you don't trust links.
 2. once docker desktop is installed you can run the docker localy by running this command.
     ```bash
-    docker compose up -d --build
+    docker build -t aateminerdashboard .
     ```
-    *Uses `network_mode: "host"` for proper UDP broadcast reception.*
-
+    Be sure to bind the ports to your host machine.
+    ```bash
+    docker run -d -p 3000:3000 -p 33333:33333/udp --name aateminerdashboard aateminerdashboard
+    ```
     *Uses port mapping. Access at http://localhost:3000*
+
+#### Pull the image from dockerhub
+1.  **Pull the image**
+    ```bash
+    docker pull ocybress/aateminerdashboard:latest
+    ```
+2.  **Run the image**
+    ```bash
+    docker run -d -p 3000:3000 -p 33333:33333/udp --name aateminerdashboard ocybress/aateminerdashboard:latest
+    ```
+3.  **Access Dashboard**
+    Open your browser and navigate to `http://localhost:3000`.    
 
 **Note:** UDP broadcasts from miners may not reach the container on Windows due to Docker's networking limitations. For full functionality, deploy on Linux/Umbrel.
 

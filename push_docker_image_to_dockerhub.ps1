@@ -1,15 +1,15 @@
 # Docker Push Automation Script
 # Usage: ./push_release.ps1 [RepoName]
-# Example: ./push_release.ps1 ocybress/lotteryminerdashboard
+# Example: ./push_release.ps1 ocybress/aateminerdashboard
 # Example: ./push_release.ps1 myuser/myrepo
 
 param(
     [Parameter(Position=0)]
-    [string]$RepoName = "ocybress/lotteryminerdashboard"
+    [string]$RepoName = "ocybress/aateminerdashboard"
 )
 
 $VersionFile = "version.txt"
-$ImageName = "lottery-dashboard"
+$ImageName = "aateminerdashboard"
 
 # Read current version or initialize to 0.0.0
 if (Test-Path $VersionFile) {

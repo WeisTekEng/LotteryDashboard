@@ -1,21 +1,23 @@
 manifestVersion: 1
-id: LotteryMinerDashboard
-category: finance
-name: LotteryMiner Dashboard
-version: "1.0.0"
-tagline: Monitor your LotteryMiner fleet in real-time
+id: AATEMinerDashboard
+category: Crypto
+type: app
+name: AATE Miner Dashboard
+version: "0.0.25"
+tagline: Monitor your AATEMiner fleet in real-time
 description: >-
-  A lightweight, real-time dashboard for your LotteryMiners.
+  A lightweight, real-time dashboard for your AATEMiners.
   Features include:
   - Auto-discovery of miners via UDP
   - Real-time Hashrate & Temperature
   - 24-Hour Historical Graph
   - Bitcoin Network Stats (Price, Fees, Difficulty)
-developer: NerdMiner
-website: https://github.com/BitMaker-hub/NerdMiner_v2
-dependencies: []
-repo: https://github.com/BitMaker-hub/NerdMiner_v2
-support: https://github.com/BitMaker-hub/NerdMiner_v2/issues
+  - Auto-Tune Engine (Bitaxe hardware only)
+developer: Weistekeng
+website: https://github.com/WeisTekEng/LotteryDashboard.git
+dependencies: ["docker"]
+repo: https://github.com/WeisTekEng/LotteryDashboard.git
+support: https://github.com/WeisTekEng/LotteryDashboard/issues
 port: 3000
 gallery:
   - 1.jpg
@@ -25,5 +27,5 @@ path: ""
 defaultPassword: ""
 releaseNotes: >-
   Initial release with UDP auto-discovery and Bitcoin stats.
-submitter: NerdMiner
-submission: https://github.com/BitMaker-hub/NerdMiner_v2
+submitter: Weistekeng
+submission: https://github.com/WeisTekEng/LotteryDashboard
