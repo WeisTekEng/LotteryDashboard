@@ -1,8 +1,10 @@
 # Docker Push Automation Script with Branch-Based Tagging, SHA, and Version Bumping
-# Usage: ./push_release.ps1 [RepoName] [BumpMode]
+# Usage: ./push_release.ps1 [RepoName] [BumpMode] [OverrideTags]
 #   RepoName: e.g., ocybress/aateminerdashboard
 #   BumpMode: major | minor | patch (optional, default patch)
+#   OverrideTags: Comma-separated tags to push instead of auto-detected tags (e.g., "latest,dev")
 # Example: ./push_release.ps1 ocybress/aateminerdashboard patch
+# Example: ./push_release.ps1 ocybress/aateminerdashboard patch "latest,dev"
 
 param(
     [Parameter(Position=0)]
@@ -10,7 +12,10 @@ param(
 
     [Parameter(Position=1)]
     [ValidateSet("major","minor","patch")]
-    [string]$BumpMode = "patch"
+    [string]$BumpMode = "patch",
+
+    [Parameter(Position=2)]
+    [string]$OverrideTags = ""
 )
 
 $VersionFile = "version.txt"
@@ -72,6 +77,13 @@ if ($TagMode -eq "main") {
     Write-Host "Release Tag: $ReleaseTag" -ForegroundColor Yellow
 }
 Write-Host "Commit SHA: $CommitSHA" -ForegroundColor Yellow
+
+# Check if override tags are provided
+if ($OverrideTags) {
+    Write-Host "Override Tags: $OverrideTags" -ForegroundColor Magenta
+    Write-Host "WARNING: Auto-detected tags will be REPLACED by override tags!" -ForegroundColor Yellow
+}
+
 Write-Host ""
 
 # --- Step 5: Confirm ---
@@ -98,38 +110,43 @@ Write-Host "Image built successfully." -ForegroundColor Green
 $SourceImage = "${ImageName}:build"
 Write-Host "Using source image: $SourceImage" -ForegroundColor Green
 
-# --- Step 7: Tagging ---
-switch ($TagMode) {
-    "main" {
-        docker tag $SourceImage "${RepoName}:${ReleaseTag}"
-        docker tag $SourceImage "${RepoName}:latest"
-        docker tag $SourceImage "${RepoName}:${CommitSHA}"
-        Write-Host "Tagged main branch: $ReleaseTag, latest, $CommitSHA" -ForegroundColor Cyan
-    }
-    "dev" {
-        docker tag $SourceImage "${RepoName}:dev"
-        docker tag $SourceImage "${RepoName}:${CommitSHA}"
-        Write-Host "Tagged dev branch: dev, $CommitSHA" -ForegroundColor Cyan
-    }
-    "feature" {
-        $FeatureTag = "dev-$GitBranch"
-        docker tag $SourceImage "${RepoName}:${FeatureTag}"
-        docker tag $SourceImage "${RepoName}:${CommitSHA}"
-        Write-Host "Tagged feature branch: $FeatureTag, $CommitSHA" -ForegroundColor Cyan
-    }
-}
-
-# --- Step 8: Push ---
-Write-Host "--- Pushing Images to Docker Hub ---" -ForegroundColor Cyan
-
-# Determine tags to push
+# --- Step 7: Determine tags to push ---
 $TagsToPush = @()
 
-switch ($TagMode) {
-    "main" { $TagsToPush += @($ReleaseTag, "latest", $CommitSHA) }
-    "dev" { $TagsToPush += @("dev", $CommitSHA) }
-    "feature" { $TagsToPush += @($FeatureTag, $CommitSHA) }
+if ($OverrideTags) {
+    # Use override tags
+    $TagsToPush = $OverrideTags -split ',' | ForEach-Object { $_.Trim() }
+    Write-Host "Using override tags: $($TagsToPush -join ', ')" -ForegroundColor Magenta
+} else {
+    # Use auto-detected tags based on branch
+    switch ($TagMode) {
+        "main" { 
+            $TagsToPush += @($ReleaseTag, "latest", $CommitSHA)
+        }
+        "dev" { 
+            $TagsToPush += @("dev", $CommitSHA)
+        }
+        "feature" { 
+            $FeatureTag = "dev-$GitBranch"
+            $TagsToPush += @($FeatureTag, $CommitSHA)
+        }
+    }
+    Write-Host "Using auto-detected tags: $($TagsToPush -join ', ')" -ForegroundColor Cyan
 }
+
+# --- Step 8: Tagging ---
+Write-Host "--- Tagging Images ---" -ForegroundColor Cyan
+foreach ($tag in $TagsToPush) {
+    docker tag $SourceImage "${RepoName}:${tag}"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Tagging failed for tag $tag!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Tagged: ${RepoName}:${tag}" -ForegroundColor Green
+}
+
+# --- Step 9: Push ---
+Write-Host "--- Pushing Images to Docker Hub ---" -ForegroundColor Cyan
 
 foreach ($t in $TagsToPush) {
     Write-Host "Pushing: ${RepoName}:$t" -ForegroundColor Cyan
@@ -140,8 +157,8 @@ foreach ($t in $TagsToPush) {
     }
 }
 
-# --- Step 9: Update version file if main branch ---
-if ($TagMode -eq "main") {
+# --- Step 10: Update version file if main branch ---
+if ($TagMode -eq "main" -and -not $OverrideTags) {
     Set-Content -Path $VersionFile -Value $NewVersion -NoNewline
     Write-Host "Version file updated to: $NewVersion" -ForegroundColor Green
 }
