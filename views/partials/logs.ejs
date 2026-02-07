@@ -1,0 +1,21 @@
+<section id="logs-view" style="display: none; margin-bottom: 2rem;">
+    <div class="miner-card" style="height: 600px; display: flex; flex-direction: column; padding: 0;">
+        <div class="card-header"
+            style="padding: 1.5rem; margin-bottom: 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div>
+                <div class="miner-id">Live Server Logs</div>
+                <div class="miner-ip">Real-time status & adjustments</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="clearLogs()" class="btn-secondary"
+                    style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Clear</button>
+                <div class="status-badge">
+                    <span class="status-dot"></span> Streaming
+                </div>
+            </div>
+        </div>
+        <div id="log-container"
+            style="flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 1.5rem; font-family: 'Courier New', monospace; font-size: 0.875rem; color: #f8fafc; scroll-behavior: smooth;">
+        </div>
+    </div>
+</section>

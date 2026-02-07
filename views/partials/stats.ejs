@@ -1,0 +1,180 @@
+<div id="stats-view">
+    <!-- Bitcoin Stats Card -->
+    <div id="bitcoin-card" class="miner-card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg" width="32" height="32"
+                    alt="BTC">
+                <div>
+                    <div class="miner-id">Bitcoin Network</div>
+                    <div class="miner-ip" id="btc-price">Loading...</div>
+                </div>
+            </div>
+            <div class="status-badge" style="background: rgba(247, 147, 26, 0.2); color: #f7931a;">
+                <span class="status-dot" style="background: #f7931a;"></span> Live
+            </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+            <div class="stat-item">
+                <span class="stat-label">Block Height</span>
+                <span class="stat-value" id="btc-height">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Halving</span>
+                <span class="stat-value" id="btc-halving">-</span>
+                <div
+                    style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px;">
+                    <div id="btc-halving-bar"
+                        style="width: 0%; height: 100%; background: #f7931a; border-radius: 2px; transition: width 1s;">
+                    </div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Difficulty</span>
+                <span class="stat-value" id="btc-diff">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Network Hash</span>
+                <span class="stat-value" id="btc-network-hash">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Fees (Sat/vB)</span>
+                <span class="stat-value" id="btc-fees">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bitcoin Cash Stats Card -->
+    <div id="bch-card" class="miner-card" style="margin-bottom: 2rem; display: none;">
+        <div class="card-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/58/Bitcoin_Cash.png" width="32" height="32"
+                    alt="BCH">
+                <div>
+                    <div class="miner-id">Bitcoin Cash Network</div>
+                    <div class="miner-ip" id="bch-price">Loading...</div>
+                </div>
+            </div>
+            <div class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                <span class="status-dot" style="background: #10b981;"></span> Live
+            </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+            <div class="stat-item">
+                <span class="stat-label">Block Height</span>
+                <span class="stat-value" id="bch-height">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Halving</span>
+                <span class="stat-value" id="bch-halving">-</span>
+                <div
+                    style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px;">
+                    <div id="bch-halving-bar"
+                        style="width: 0%; height: 100%; background: #10b981; border-radius: 2px; transition: width 1s;">
+                    </div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Difficulty</span>
+                <span class="stat-value" id="bch-diff">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Network Hash</span>
+                <span class="stat-value" id="bch-network-hash">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Solo Mining Odds Card -->
+    <div class="miner-card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+            <div>
+                <div class="miner-id">Solo Mining Odds</div>
+                <div class="miner-ip">Your Lottery Stats</div>
+            </div>
+        </div>
+
+        <!-- BTC Odds -->
+        <div style="margin-bottom: 1rem;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #f7931a; font-size: 0.9rem; text-transform: uppercase;">
+                Bitcoin (BTC)</h4>
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+                <div class="stat-item">
+                    <span class="stat-label">Potential Reward</span>
+                    <span class="stat-value" id="btc-block-value" style="color: #facc15;">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Daily Chance</span>
+                    <span class="stat-value" id="btc-daily-chance" style="color: #10b981;">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Est. Time to Win</span>
+                    <span class="stat-value" id="btc-time-to-win">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BCH Odds -->
+        <div>
+            <h4 style="margin: 0 0 0.5rem 0; color: #10b981; font-size: 0.9rem; text-transform: uppercase;">
+                Bitcoin Cash (BCH)</h4>
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+                <div class="stat-item">
+                    <span class="stat-label">Potential Reward</span>
+                    <span class="stat-value" id="bch-block-value" style="color: #facc15;">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Daily Chance</span>
+                    <span class="stat-value" id="bch-daily-chance" style="color: #10b981;">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Est. Time to Win</span>
+                    <span class="stat-value" id="bch-time-to-win">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));">
+                <div class="stat-item">
+                    <span class="stat-label">Best Fleet Diff</span>
+                    <span class="stat-value" id="best-diff-overall" style="color: #3b82f6;">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">5m Avg</span>
+                    <span class="stat-value" id="avg-5m">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">1h Avg</span>
+                    <span class="stat-value" id="avg-1h">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">24h Avg</span>
+                    <span class="stat-value" id="avg-24h">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hashrate History Card -->
+    <div id="hashrate-graph-card" class="miner-card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+            <div>
+                <div class="miner-id">Total Hashrate (Last 24 Hours)</div>
+                <div class="miner-ip">Fleet Performance</div>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1.5rem;">
+            <div style="position: relative; height: 300px; width:100%">
+                <canvas id="hashrateChart"></canvas>
+            </div>
+            <div
+                style="display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.2); border-radius: 0.5rem; padding: 1rem;">
+                <div
+                    style="font-size: 0.875rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    24h Average</div>
+                <div id="hourly-avg" style="font-size: 2rem; font-weight: 800; color: #10b981;">-</div>
+            </div>
+        </div>
+    </div>
+</div>

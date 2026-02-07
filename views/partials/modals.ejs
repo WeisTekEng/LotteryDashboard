@@ -1,0 +1,145 @@
+<!-- Add Device Modal -->
+<div id="addDeviceModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">Add New Device</span>
+            <button class="modal-close" onclick="closeAddModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem;">
+                Enter the IP address of your Bitaxe (or other HTTP-API miner).
+            </p>
+            <div class="form-group">
+                <label class="form-label">Device IP Address</label>
+                <input type="text" id="addDeviceIp" class="form-input" placeholder="e.g. 192.168.1.50">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Device Name (Optional)</label>
+                <input type="text" id="addDeviceName" class="form-input" placeholder="e.g. Bitaxe-01">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="addMiner()">Add Device</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Modal -->
+<div id="configModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="configModalTitle">Miner Configuration</span>
+            <button class="modal-close" onclick="closeConfigModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="configForm">
+                <input type="hidden" id="configIp">
+                <div class="form-group">
+                    <label class="form-label">Pool Address</label>
+                    <input type="text" id="configPool" class="form-input" placeholder="e.g. public-pool.io">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pool Port</label>
+                    <input type="number" id="configPort" class="form-input" placeholder="e.g. 21496">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Wallet Address</label>
+                    <input type="text" id="configAddr" class="form-input" placeholder="Your BTC Address">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pool Password</label>
+                    <input type="text" id="configPass" class="form-input" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Timezone Offset</label>
+                    <input type="number" id="configTz" class="form-input" placeholder="e.g. -5">
+                </div>
+
+                <div class="form-group" style="padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <label class="form-label">Dashboard Coin Setting</label>
+                    <select id="configCoin" class="form-input" style="background: rgba(15, 23, 42, 0.6); color: white;">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="BCH">Bitcoin Cash (BCH)</option>
+                    </select>
+                    <small style="color: #64748b; display: block; margin-top: 4px;">Controls which stats are used
+                        for this device.</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Fallback Pool Coin</label>
+                    <select id="configFallbackCoin" class="form-input"
+                        style="background: rgba(15, 23, 42, 0.6); color: white;">
+                        <option value="">Same as Primary</option>
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="BCH">Bitcoin Cash (BCH)</option>
+                    </select>
+                    <small style="color: #64748b; display: block; margin-top: 4px;">What coin does the fallback pool
+                        mine?</small>
+                </div>
+
+                <div class="form-group" style="padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <label class="form-label">Auto-Tune Engine</label>
+                    <select id="configAutoTune" class="form-input"
+                        style="background: rgba(15, 23, 42, 0.6); color: white;" onchange="toggleCostFields()">
+                        <option value="off">Off (Manual Control)</option>
+                        <option value="conservative">Conservative (Efficiency)</option>
+                        <option value="aggressive">Aggressive (Performance)</option>
+                        <option value="cost_sensitive">Cost Sensitive</option>
+                    </select>
+                </div>
+
+                <div id="costFields"
+                    style="display: none; padding-left: 1rem; border-left: 2px solid #10b981; margin-top: 0.5rem;">
+                    <div class="form-group">
+                        <label class="form-label">Electricity Price ($/kWh)</label>
+                        <input type="number" id="configKwhPrice" class="form-input" placeholder="0.12" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Daily Cost ($)</label>
+                        <input type="number" id="configDailyCost" class="form-input" placeholder="1.50" step="0.01">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeConfigModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveConfig()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Aggressive Mode Warning Modal -->
+<div id="aggressiveWarningModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span class="modal-title" style="color: #ef4444;">Warning: Hardware Risk</span>
+            </div>
+        </div>
+        <div class="modal-body">
+            <p style="color: #f8fafc; font-weight: 600; margin-bottom: 0.5rem;">
+                You are about to enable Aggressive Auto-Tuning.
+            </p>
+            <p style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem;">
+                This mode will push voltage and frequency beyond standard limits to maximize hashrate.
+                While safeguards are in place, there is a legitimate risk of hardware instability,
+                overheating, or permanent damage to the ASIC chip.
+            </p>
+            <p style="color: #ef4444; font-size: 0.8rem; font-weight: 600;">
+                USE AT YOUR OWN RISK.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cancelAggressiveMode()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmAggressiveMode()"
+                style="background: #ef4444; border-color: #ef4444;">I Understand, Proceed</button>
+        </div>
+    </div>
+</div>

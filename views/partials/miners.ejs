@@ -1,0 +1,26 @@
+<div id="miners-view" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: white; margin: 0;">My Miners</h2>
+        <div class="stat-value" id="total-hashrate" style="font-size: 1rem; color: #10b981;">0 H/s Total</div>
+        <button onclick="openAddModal()"
+            style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+            + Add Device
+        </button>
+    </div>
+
+    <!-- NerdMiners Grid -->
+    <h3 id="nerdminer-header"
+        style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+        <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></span>
+        NerdMiners
+    </h3>
+    <div id="nerdminer-grid" class="grid" style="margin-bottom: 2rem;"></div>
+
+    <!-- Other Devices Grid -->
+    <h3
+        style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+        <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
+        Other Devices
+    </h3>
+    <div id="other-miner-grid" class="grid"></div>
+</div>

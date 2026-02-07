@@ -23,8 +23,14 @@ const minerService = new MinerService(io, autoTuneStates);
 const scannerService = new ScannerService(minerService);
 const autoTuneEngine = new AutoTuneEngine(autoTuneStates);
 
+app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// Main Route
+app.get('/', (req, res) => {
+  res.render('index');
+});
 
 // --- Socket.io ---
 io.on('connection', (socket) => {

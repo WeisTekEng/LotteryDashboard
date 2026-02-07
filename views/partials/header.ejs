@@ -1,0 +1,37 @@
+<header>
+    <h1>Adaptive Auto-Tuning Miner Dashboard</h1>
+    <div style="position: relative;">
+        <button onclick="toggleMenu()" class="btn-icon"
+            style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; border: none; color: white; cursor: pointer;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <div id="nav-menu"
+            style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.5rem; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; width: 220px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); z-index: 100;">
+            <button onclick="switchView('stats')" class="nav-item"
+                style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                📊 Dashboard Stats
+            </button>
+            <button onclick="switchView('miners')" class="nav-item"
+                style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                ⛏️ Pool / Miners
+            </button>
+            <button onclick="switchView('autotune')" class="nav-item"
+                style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                🎛️ Auto-Tune Monitor
+            </button>
+            <button onclick="switchView('logs')" class="nav-item"
+                style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                📑 Live Server Logs
+            </button>
+            <button onclick="switchView('settings')" class="nav-item"
+                style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; font-size: 1rem;">
+                ⚙️ Dashboard Settings
+            </button>
+        </div>
+    </div>
+</header>
