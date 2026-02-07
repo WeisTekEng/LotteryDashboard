@@ -183,6 +183,8 @@ function closeConfigModal() {
 }
 
 async function saveConfig(force = false) {
+    console.log('saveConfig called with force:', force);
+
     const autoTuneVal = document.getElementById('configAutoTune').value;
 
     // Check for aggressive mode warning
@@ -228,16 +230,19 @@ async function saveConfig(force = false) {
         alert('Error saving configuration: ' + e.message);
     } finally {
         try {
+            const payload = {
+                coin: document.getElementById('configCoin').value,
+                fallbackCoin: document.getElementById('configFallbackCoin').value || null,
+                autoTune: document.getElementById('configAutoTune').value,
+                kwhPrice: document.getElementById('configKwhPrice').value,
+                dailyCostLimit: document.getElementById('configDailyCost').value
+            };
+            console.log('Sending metadata:', payload);
+
             await fetch(`/miners/${ip}/metadata`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    coin: document.getElementById('configCoin').value,
-                    fallbackCoin: document.getElementById('configFallbackCoin').value || null,
-                    autoTune: document.getElementById('configAutoTune').value,
-                    kwhPrice: document.getElementById('configKwhPrice').value,
-                    dailyCostLimit: document.getElementById('configDailyCost').value
-                })
+                body: JSON.stringify(payload)
             });
         } catch (err) {
             console.error('Failed to save metadata', err);

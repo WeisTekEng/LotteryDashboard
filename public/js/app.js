@@ -7,6 +7,7 @@ const totalHashEl = document.getElementById('total-hashrate');
 const addModal = document.getElementById('addDeviceModal');
 
 const miners = {};
+window.miners = miners; // Expose for other scripts
 let currentFleetHash = 0;
 let currentNetworkHash = 0;
 let btcStats = {};

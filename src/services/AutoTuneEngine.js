@@ -258,7 +258,7 @@ class AutoTuneEngine {
      * Detect device type and voltage limits from miner data
      */
     detectDeviceType(minerData) {
-        const deviceName = (minerData.deviceModel || minerData.miner || '').toLowerCase();
+        const deviceName = (minerData.deviceModel || minerData.miner || minerData.hostname || '').toLowerCase();
         const version = (minerData.version || '').toLowerCase();
 
         // NerdqAxe++ detection (12V)
@@ -296,9 +296,16 @@ class AutoTuneEngine {
         }
 
         // Check for explicit voltage in device data
+        // Handle both inputVoltage (V) and voltage (mV)
         if (minerData.inputVoltage) {
             const voltage = parseFloat(minerData.inputVoltage);
             return voltage > 8 ? '12V' : '5V';
+        }
+
+        if (minerData.voltage) {
+            const voltageMv = parseFloat(minerData.voltage);
+            // If voltage is > 8V (8000mV), it's likely a 12V device
+            return voltageMv > 8000 ? '12V' : '5V';
         }
 
         // Default to 5V (safer)
@@ -433,8 +440,30 @@ class AutoTuneEngine {
             const smoothErrorRate = state.errorHistory.reduce((a, b) => a + b, 0) / state.errorHistory.length;
 
             // Sync with actual miner state
-            state.currentVoltage = data.coreVoltage;
+            // If the reported voltage is close to our last set voltage (within rounding error), 
+            // keep our high-precision value instead of the miner's rounded integer.
+            if (Math.abs((data.coreVoltage || 0) - (state.currentVoltage || 0)) > 1.5) {
+                state.currentVoltage = data.coreVoltage;
+            }
             state.currentFreq = data.frequency;
+
+            // --- HISTORY LOGGING ---
+            state.tuningLog = state.tuningLog || [];
+            state.tuningLog.push({
+                timestamp: now,
+                voltage: state.currentVoltage,
+                freq: state.currentFreq,
+                hashrate: hashrate,
+                power: power,
+                temp: avgTemp, // Use smoothed temp
+                errorRate: smoothErrorRate,
+                action: state.lastAction || 'maintain' // Log the action that RESULTED in this state (approx) or current
+            });
+            // Limit log size (500 entries ~ 1-2 days depending on interval)
+            if (state.tuningLog.length > 500) {
+                state.tuningLog.shift();
+            }
+
 
             // NEW: Detect ASIC model and device type (once)
             if (!state.asicModel) {

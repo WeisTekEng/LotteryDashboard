@@ -1,86 +1,14 @@
 
-// AutoTune Monitor Logic
-
-let autoTuneData = null;
-let autoTuneRefreshInterval = null;
-let autoTuneCountdownInterval = null;
-const AUTOTUNE_REFRESH_SECONDS = 10;
-// Global variable to share detailed autotune data if needed by config modal
-window.GlobalAutoTuneData = null;
-
-async function refreshAutoTuneData() {
-    try {
-        const res = await fetch('/api/autotune/adaptive-limits/summary');
-        if (!res.ok) throw new Error('Failed to fetch AutoTune data');
-        autoTuneData = await res.json();
-        window.GlobalAutoTuneData = autoTuneData; // Expose globally
-        renderAutoTuneView();
-
-        // Reset countdown
-        resetAutoTuneCountdown();
-    } catch (e) {
-        console.error('AutoTune data fetch error:', e);
-        const grid = document.getElementById('autotune-miners-grid');
-        if (grid) {
-            grid.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 2rem;">Error loading data: ${e.message}</div>`;
-        }
-    }
-}
-
-function startAutoTuneRefresh() {
-    // Clear any existing intervals
-    stopAutoTuneRefresh();
-
-    // Start refresh interval
-    autoTuneRefreshInterval = setInterval(() => {
-        refreshAutoTuneData();
-    }, AUTOTUNE_REFRESH_SECONDS * 1000);
-
-    // Start countdown
-    resetAutoTuneCountdown();
-}
-
-function stopAutoTuneRefresh() {
-    if (autoTuneRefreshInterval) {
-        clearInterval(autoTuneRefreshInterval);
-        autoTuneRefreshInterval = null;
-    }
-    if (autoTuneCountdownInterval) {
-        clearInterval(autoTuneCountdownInterval);
-        autoTuneCountdownInterval = null;
-    }
-}
-
-function resetAutoTuneCountdown() {
-    // Clear existing countdown
-    if (autoTuneCountdownInterval) {
-        clearInterval(autoTuneCountdownInterval);
-    }
-
-    let secondsLeft = AUTOTUNE_REFRESH_SECONDS;
-    const countdownEl = document.getElementById('autotune-countdown');
-
-    if (countdownEl) {
-        countdownEl.textContent = secondsLeft;
-
-        autoTuneCountdownInterval = setInterval(() => {
-            secondsLeft--;
-            if (countdownEl) {
-                countdownEl.textContent = secondsLeft;
-            }
-            if (secondsLeft <= 0) {
-                clearInterval(autoTuneCountdownInterval);
-            }
-        }, 1000);
-    }
-}
+// AutoTune UI Logic - Main Dashboard
 
 function renderAutoTuneView() {
     if (!autoTuneData) return;
 
     // Update summary stats
-    document.getElementById('autotune-total-miners').textContent = autoTuneData.totalMiners;
-    document.getElementById('autotune-limited-miners').textContent = autoTuneData.limitedMiners;
+    const totalMinersEl = document.getElementById('autotune-total-miners');
+    const limitedMinersEl = document.getElementById('autotune-limited-miners');
+    if (totalMinersEl) totalMinersEl.textContent = autoTuneData.totalMiners;
+    if (limitedMinersEl) limitedMinersEl.textContent = autoTuneData.limitedMiners;
 
     // Calculate total faults in last 24h
     const now = Date.now();
@@ -103,9 +31,13 @@ function renderAutoTuneView() {
         }
     });
 
-    document.getElementById('autotune-total-faults').textContent = totalRecentFaults;
-    const avgPerf = performanceCount > 0 ? (totalPerformance / performanceCount).toFixed(1) : 0;
-    document.getElementById('autotune-avg-performance').textContent = avgPerf + '%';
+    const totalFaultsEl = document.getElementById('autotune-total-faults');
+    const avgPerfEl = document.getElementById('autotune-avg-performance');
+    if (totalFaultsEl) totalFaultsEl.textContent = totalRecentFaults;
+    if (avgPerfEl) {
+        const avgPerf = performanceCount > 0 ? (totalPerformance / performanceCount).toFixed(1) : 0;
+        avgPerfEl.textContent = avgPerf + '%';
+    }
 
     // Render miner cards
     const grid = document.getElementById('autotune-miners-grid');
@@ -123,7 +55,10 @@ function createAutoTuneMinerCard(miner) {
     const isLimited = miner.isLimited;
     // Access global miners object if needed, or assume it's passed/available
     const globalMiners = window.miners || {};
-    const minerHashrate = formatHashrate(Object.values(globalMiners).find(m => m.ip === miner.ip)?.hashrate || 0);
+    const minerHashrate = typeof formatHashrate === 'function'
+        ? formatHashrate(Object.values(globalMiners).find(m => m.ip === miner.ip)?.hashrate || 0)
+        : (Object.values(globalMiners).find(m => m.ip === miner.ip)?.hashrate || 0) + ' GH/s';
+
     const perfPercent = miner.adaptive.maxFreq > 0
         ? ((miner.currentSettings.frequency / miner.adaptive.maxFreq) * 100).toFixed(1)
         : 0;
@@ -152,6 +87,13 @@ function createAutoTuneMinerCard(miner) {
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
+                    <button onclick="openMinerDetails('${miner.ip}')" class="btn-icon" title="View Details & Charts" style="background: rgba(59, 130, 246, 0.2); padding: 6px; border-radius: 6px; border: none; color: #3b82f6; cursor: pointer;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </button>
                     <button onclick="showFaultHistory('${miner.ip}')" class="btn-icon" title="View Fault History" style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 6px; border: none; color: white; cursor: pointer;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -285,71 +227,7 @@ function createAutoTuneMinerCard(miner) {
     `;
 }
 
-async function resetAdaptiveLimits(ip) {
-    if (!confirm(`Reset adaptive limits for ${ip}?\n\nThis will restore config max limits and allow the miner to re-learn its capabilities.`)) {
-        return;
-    }
-
-    try {
-        const res = await fetch(`/api/autotune/${ip}/adaptive-limits/reset`, {
-            method: 'POST'
-        });
-
-        if (!res.ok) throw new Error('Failed to reset limits');
-
-        const data = await res.json();
-        alert(`Limits reset successfully!\n\nNew limits: ${data.limits.maxVoltage}mV / ${data.limits.maxFreq}MHz`);
-
-        // Refresh the view
-        await refreshAutoTuneData();
-    } catch (e) {
-        alert('Error resetting limits: ' + e.message);
-    }
-}
-
-async function showFaultHistory(ip) {
-    try {
-        const res = await fetch(`/api/autotune/${ip}/adaptive-limits`);
-        if (!res.ok) throw new Error('Failed to fetch fault history');
-
-        const data = await res.json();
-        const faults = data.adaptive.faultHistory || [];
-
-        if (faults.length === 0) {
-            alert(`No fault history for ${ip}`);
-            return;
-        }
-
-        // Create a formatted display
-        let message = `Fault History for ${ip}\n`;
-        message += `${'='.repeat(60)}\n\n`;
-
-        faults.reverse().forEach((fault, idx) => {
-            const date = new Date(fault.timestamp).toLocaleString();
-            message += `${idx + 1}. ${date}\n`;
-            message += `   Reason: ${fault.reason}\n`;
-            message += `   Settings: ${fault.voltage}mV / ${fault.freq}MHz\n`;
-            message += `   New Limits: ${fault.newLimits.maxVoltage}mV / ${fault.newLimits.maxFreq}MHz\n\n`;
-        });
-
-        // For now, use alert (you could create a modal later)
-        alert(message);
-        console.log('Fault History for', ip);
-        console.table(faults.map(f => ({
-            Date: new Date(f.timestamp).toLocaleString(),
-            Reason: f.reason,
-            Voltage: f.voltage + 'mV',
-            Frequency: f.freq + 'MHz',
-            'New Max V': f.newLimits.maxVoltage + 'mV',
-            'New Max F': f.newLimits.maxFreq + 'MHz'
-        })));
-
-    } catch (e) {
-        alert('Error loading fault history: ' + e.message);
-    }
-}
-
-// Modal Logic
+// Modal Logic for Aggressive Warning
 let pendingAggressiveAction = null;
 
 function showAggressiveWarning(action) {
@@ -364,13 +242,19 @@ function closeAggressiveWarning() {
     pendingAggressiveAction = null;
 }
 
-async function confirmAggressiveMode() {
+function confirmAggressiveMode() {
+    console.log('confirmAggressiveMode called');
+    const action = pendingAggressiveAction; // Capture action before closing
     closeAggressiveWarning();
-    if (!pendingAggressiveAction) return;
 
-    if (pendingAggressiveAction.type === 'inline') {
-        executeToggleAutotune(pendingAggressiveAction.ip, 'aggressive');
-    } else if (pendingAggressiveAction.type === 'config') {
+    if (!action) {
+        console.error('No pending action');
+        return;
+    }
+
+    if (action.type === 'inline') {
+        executeToggleAutotune(action.ip, 'aggressive');
+    } else if (action.type === 'config') {
         saveConfig(true); // Helper to bypass check
     }
 }
@@ -379,7 +263,6 @@ function cancelAggressiveMode() {
     closeAggressiveWarning();
     // Refresh to revert UI selection
     if (typeof refreshAutoTuneData === 'function') refreshAutoTuneData();
-    // If in config modal, revert select? (handled by user just changing it back or cancelling)
 }
 
 async function toggleAutotune(ip, mode) {
@@ -426,7 +309,7 @@ async function saveCostFromInline(ip) {
             })
         });
 
-        // Visual feedback?
+        // Visual feedback
         priceInput.style.borderColor = '#10b981';
         limitInput.style.borderColor = '#10b981';
         setTimeout(() => {
@@ -437,5 +320,69 @@ async function saveCostFromInline(ip) {
     } catch (e) {
         console.error('Failed to save cost settings', e);
         alert('Failed to save settings');
+    }
+}
+
+async function resetAdaptiveLimits(ip) {
+    if (!confirm(`Reset adaptive limits for ${ip}?\n\nThis will restore config max limits and allow the miner to re-learn its capabilities.`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/autotune/${ip}/adaptive-limits/reset`, {
+            method: 'POST'
+        });
+
+        if (!res.ok) throw new Error('Failed to reset limits');
+
+        const data = await res.json();
+        alert(`Limits reset successfully!\n\nNew limits: ${data.limits.maxVoltage}mV / ${data.limits.maxFreq}MHz`);
+
+        // Refresh the view
+        if (typeof refreshAutoTuneData === 'function') refreshAutoTuneData();
+    } catch (e) {
+        alert('Error resetting limits: ' + e.message);
+    }
+}
+
+async function showFaultHistory(ip) {
+    try {
+        const res = await fetch(`/api/autotune/${ip}/adaptive-limits`);
+        if (!res.ok) throw new Error('Failed to fetch fault history');
+
+        const data = await res.json();
+        const faults = data.adaptive.faultHistory || [];
+
+        if (faults.length === 0) {
+            alert(`No fault history for ${ip}`);
+            return;
+        }
+
+        // Create a formatted display
+        let message = `Fault History for ${ip}\n`;
+        message += `${'='.repeat(60)}\n\n`;
+
+        faults.reverse().forEach((fault, idx) => {
+            const date = new Date(fault.timestamp).toLocaleString();
+            message += `${idx + 1}. ${date}\n`;
+            message += `   Reason: ${fault.reason}\n`;
+            message += `   Settings: ${fault.voltage}mV / ${fault.freq}MHz\n`;
+            message += `   New Limits: ${fault.newLimits.maxVoltage}mV / ${fault.newLimits.maxFreq}MHz\n\n`;
+        });
+
+        // For now, use alert
+        alert(message);
+        console.log('Fault History for', ip);
+        console.table(faults.map(f => ({
+            Date: new Date(f.timestamp).toLocaleString(),
+            Reason: f.reason,
+            Voltage: f.voltage + 'mV',
+            Frequency: f.freq + 'MHz',
+            'New Max V': f.newLimits.maxVoltage + 'mV',
+            'New Max F': f.newLimits.maxFreq + 'MHz'
+        })));
+
+    } catch (e) {
+        alert('Error loading fault history: ' + e.message);
     }
 }

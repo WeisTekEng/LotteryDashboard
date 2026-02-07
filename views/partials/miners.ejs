@@ -1,7 +1,13 @@
 <div id="miners-view" style="display: none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: white; margin: 0;">My Miners</h2>
-        <div class="stat-value" id="total-hashrate" style="font-size: 1rem; color: #10b981;">0 H/s Total</div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="stat-value" id="total-hashrate" style="font-size: 1rem; color: #10b981;">0 H/s Total</div>
+            <span
+                style="font-size: 0.75rem; color: #10b981; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                Refreshes in: <span class="global-refresh-timer">5</span>s
+            </span>
+        </div>
         <button onclick="openAddModal()"
             style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
             + Add Device

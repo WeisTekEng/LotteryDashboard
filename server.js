@@ -118,6 +118,7 @@ app.post('/miners/add', (req, res) => {
 app.post('/miners/:ip/metadata', (req, res) => {
   const { ip } = req.params;
   const { coin, fallbackCoin, autoTune } = req.body;
+  console.log(`[Metadata] Update for ${ip}:`, req.body);
 
   if (!minerService.httpMiners.has(ip)) return res.status(404).json({ error: 'Miner not found' });
 
@@ -321,6 +322,68 @@ app.get('/api/autotune/adaptive-limits/summary', (req, res) => {
     limitedMiners: summary.filter(m => m.isLimited).length,
     miners: summary
   });
+});
+
+// Get detailed stats for a specific miner (Charts/Heatmap)
+app.get('/api/autotune/:ip/details', (req, res) => {
+  const { ip } = req.params;
+  const state = autoTuneEngine.autoTuneStates.get(ip);
+
+  if (!state) {
+    return res.status(404).json({ error: 'Miner not found or AutoTune not enabled' });
+  }
+
+  // Return relevant data for charting
+  // Find the miner with this IP in the live data (miners is keyed by ID)
+  const minerData = Object.values(minerService.miners).find(m => m.ip === ip);
+
+  res.json({
+    ip,
+    mode: state.mode,
+    tuningLog: state.tuningLog || [],
+    adaptiveLimits: state.adaptiveLimits,
+    faultHistory: state.faultHistory || [],
+    currentSettings: {
+      voltage: state.currentVoltage,
+      frequency: state.currentFreq
+    },
+    currentStats: minerData ? {
+      hashrate: parseFloat(minerData.hashrate),
+      power: parseFloat(minerData.power),
+      temp: parseFloat(minerData.temp)
+    } : null
+  });
+});
+
+// Export tuning log as CSV
+app.get('/api/autotune/:ip/export', (req, res) => {
+  const { ip } = req.params;
+  const state = autoTuneEngine.autoTuneStates.get(ip);
+
+  if (!state || !state.tuningLog) {
+    return res.status(404).send('No logs found for this miner.');
+  }
+
+  const log = state.tuningLog;
+
+  // CSV Header
+  let csv = 'Timestamp,Action,Voltage(mV),Frequency(MHz),Hashrate(GH/s),Power(W),Efficiency(J/TH),Temp(C),ErrorRate(%)\n';
+
+  // CSV Rows
+  log.forEach(row => {
+    const time = new Date(row.timestamp).toISOString();
+    const eff = (row.power && row.hashrate) ? (row.power / (row.hashrate / 1000)).toFixed(2) : '';
+    const err = (row.errorRate * 100).toFixed(2);
+
+    // Handle potential commas in action string by quoting
+    const action = `"${row.action || ''}"`;
+
+    csv += `${time},${action},${row.voltage},${row.freq},${row.hashrate},${row.power || ''},${eff},${row.temp || ''},${err}\n`;
+  });
+
+  res.header('Content-Type', 'text/csv');
+  res.attachment(`autotune_export_${ip}_${Date.now()}.csv`);
+  res.send(csv);
 });
 minerService.startBackgroundJobs();
 scannerService.start();

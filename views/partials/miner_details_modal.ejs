@@ -1,0 +1,135 @@
+<!-- Miner Details Modal (Charts & Heatmap) -->
+<div id="minerDetailsModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 1400px; width: 95%; height: 85%;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span class="modal-title" id="minerDetailsTitle">AATE Miner Details</span>
+                <span
+                    style="font-size: 0.75rem; color: #10b981; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    Auto-refresh: <span id="details-refresh-timer">3</span>s
+                </span>
+                <button onclick="exportTuningLog()" class="btn-sm"
+                    style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer;">
+                    Export CSV
+                </button>
+            </div>
+            <button class="modal-close" onclick="closeMinerDetailsModal()">×</button>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <!-- Tabs -->
+            <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+                <button onclick="switchDetailsTab('performance')" class="tab-btn active" id="tab-btn-performance"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; border-bottom: 2px solid #3b82f6;">
+                    Performance Graphs
+                </button>
+                <button onclick="switchDetailsTab('heatmap')" class="tab-btn" id="tab-btn-heatmap"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Stability Scatter Plot
+                </button>
+                <button onclick="switchDetailsTab('grid')" class="tab-btn" id="tab-btn-grid"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Hashrate Map
+                </button>
+                <button onclick="switchDetailsTab('efficiency_grid')" class="tab-btn" id="tab-btn-efficiency_grid"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Efficiency Map
+                </button>
+                <button onclick="switchDetailsTab('temp_grid')" class="tab-btn" id="tab-btn-temp_grid"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Temp Map
+                </button>
+                <button onclick="switchDetailsTab('history')" class="tab-btn" id="tab-btn-history"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Log History
+                </button>
+            </div>
+
+            <div style="padding: 1.5rem; height: 900px; overflow-y: auto;">
+                <!-- Performance Tab -->
+                <div id="tab-performance" class="details-tab">
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: #94a3b8; font-size: 0.9rem;">Hashrate & Efficiency</h4>
+                        <div style="height: 275px; position: relative;">
+                            <canvas id="detailsChartHash"></canvas>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0 0 1rem 0; color: #94a3b8; font-size: 0.9rem;">Voltage & Frequency</h4>
+                        <div style="height: 275px; position: relative;">
+                            <canvas id="detailsChartTune"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Tab -->
+                <div id="tab-heatmap" class="details-tab" style="display: none;">
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem;">
+                        Scatter plot of attempted settings. <span style="color: #10b981;">Green = Stable</span>, <span
+                            style="color: #ef4444;">Red = Fault/Error</span>.
+                    </p>
+                    <div style="height: 550px; position: relative;">
+                        <canvas id="detailsChartHeatmap"></canvas>
+                    </div>
+                </div>
+
+                <!-- Grid Tab (Porformance heatmap) -->
+                <div id="tab-grid" class="details-tab" style="display: none;">
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem;">
+                        Performance Grid. X-Axis: Voltage, Y-Axis: Frequency. Color: Hashrate (<span
+                            style="color: #ef4444;">Low</span> to <span style="color: #10b981;">High</span>).
+                    </p>
+                    <div style="height: 95%; width: 95%; position: relative; margin-bottom: 2rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.9rem; text-align: center;">
+                            Hashrate (GH/s)</h4>
+                        <canvas id="detailsChartGrid"></canvas>
+                    </div>
+                </div>
+
+                <!-- Grid Tab (Efficiency heatmap) -->
+                <div id="tab-efficiency_grid" class="details-tab" style="display: none;">
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem;">
+                        Efficiency Grid. Color: J/TH (<span style="color: #10b981;">Low/Efficient</span> to <span
+                            style="color: #ef4444;">High/Inefficient</span>).
+                    </p>
+                    <div style="height: 95%; width: 95%; position: relative;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.9rem; text-align: center;">
+                            Efficiency (J/TH)</h4>
+                        <canvas id="detailsChartEfficiencyGrid"></canvas>
+                    </div>
+                </div>
+
+                <!-- Grid Tab (Temperature heatmap) -->
+                <div id="tab-temp_grid" class="details-tab" style="display: none;">
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem;">
+                        Temperature Grid. Color: °C (<span style="color: #10b981;">Low/Cool</span> to <span
+                            style="color: #ef4444;">High/Hot</span>).
+                    </p>
+                    <div style="height: 95%; width: 95%; position: relative;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.9rem; text-align: center;">
+                            Temperature (°C)</h4>
+                        <canvas id="detailsChartTempGrid"></canvas>
+                    </div>
+                </div>
+
+
+                <!-- History Tab -->
+                <div id="tab-history" class="details-tab" style="display: none;">
+                    <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; color: #cbd5e1;">
+                        <thead>
+                            <tr style="text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <th style="padding: 8px;">Time</th>
+                                <th style="padding: 8px;">Action</th>
+                                <th style="padding: 8px;">Volt</th>
+                                <th style="padding: 8px;">Freq</th>
+                                <th style="padding: 8px;">Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsHistoryTable">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
