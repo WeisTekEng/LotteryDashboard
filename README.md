@@ -66,7 +66,7 @@ The dashboard includes a "Live Logs" page for real-time monitoring:
 
 ## Miner Details & Analysis
 
-Clicking on any miner in the dashboard opens the **Miner Details Modal**, a comprehensive suite of tools for analyzing performance and tuning behavior.
+Clicking on the chart icon on a miner card in the Auto-Tune Monitor page opens the **Miner Details Modal**, a comprehensive suite of tools for analyzing performance and tuning behavior.
 
 ### Performance Heatmaps
 The dashboard renders three interactive heatmaps (grids) to visualize the miner's efficiency across its entire operating range:
