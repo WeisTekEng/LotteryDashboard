@@ -43,8 +43,17 @@ app.get('/', (req, res) => {
   }
 
   try {
-    gitBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
-    gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    // Try reading baked-in git info (Docker)
+    const gitInfoPath = path.join(__dirname, 'git_info.json');
+    if (fs.existsSync(gitInfoPath)) {
+      const gitInfo = JSON.parse(fs.readFileSync(gitInfoPath, 'utf8'));
+      gitBranch = gitInfo.branch;
+      gitHash = gitInfo.hash;
+    } else {
+      // Fallback to live git command (Local Dev)
+      gitBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+      gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    }
   } catch (e) {
     console.warn('Could not fetch git info', e.message);
   }

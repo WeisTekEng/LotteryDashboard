@@ -97,7 +97,7 @@ if ($Confirmation -ne 'y') {
 Write-Host "--- Building Image: $ImageName ---" -ForegroundColor Cyan
 
 # Use buildx with --load to ensure image is available locally
-docker buildx build --load -t "${ImageName}:build" .
+docker buildx build --load --build-arg GIT_BRANCH=$GitBranch --build-arg GIT_COMMIT=$CommitSHA -t "${ImageName}:build" .
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed! Exiting." -ForegroundColor Red
