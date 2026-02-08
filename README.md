@@ -88,6 +88,13 @@ A chronological log of every action taken by the Auto-Tune Engine, including:
 -   **Fault History**: Tracks the last 50 critical faults (e.g., Overheat, Voltage Drift, API Failure).
 -   **Adaptive Limits**: Visualizes the "Safe Zone" learned by the engine. The engine will not attempt settings above these limits unless manually reset.
 
+![Dashboard](Images/AATE_Statistics/Gamma03Performance.PNG)
+![Dashboard](Images/AATE_Statistics/Gamma03HashrateMapCurrentTargetWhiteBoarder.PNG)
+![Dashboard](Images/AATE_Statistics/Gamma03EfficiencyMap.PNG)
+![Dashboard](Images/AATE_Statistics/Gamma03TemperatureMap.PNG)
+![Dashboard](Images/AATE_Statistics/Gamma03FaultAnalysis.PNG)
+![Dashboard](Images/AATE_Statistics/Gamma03AATELogs.PNG)
+
 ## Installation and use
 
 ### (Option 1) Non-Docker Setup run straight from the repo on your computer.
