@@ -3,7 +3,7 @@
 // Module-level cache for container width
 let cachedContainerWidth = null;
 
-function renderDetailsGrid(log, faultHistory, currentSettings, currentStats = null) {
+function renderDetailsGrid(log, faultHistory, currentSettings, currentStats = null, gridHistory = null) {
     try {
         if (!faultHistory || !Array.isArray(faultHistory)) {
             faultHistory = [];
@@ -25,22 +25,64 @@ function renderDetailsGrid(log, faultHistory, currentSettings, currentStats = nu
             containerWidth = cachedContainerWidth;
         }
 
-        // STATIC BOUNDS CONFIGURATION
-        const MIN_VOLT = 941;
-        const MAX_VOLT = 1350;
+        // DYNAMIC BOUNDS CALCULATION
         const STEP_VOLT = 10; // mV
-
-        const MIN_FREQ = 400;
-        const MAX_FREQ = 1200;
         const STEP_FREQ = 25; // MHz
 
+        let minV = 941, maxV = 1350; // Initial default bounds
+        let minF = 400, maxF = 1200;
+
+        const updateBounds = (v, f) => {
+            if (v && v > 0) {
+                minV = Math.min(minV, v);
+                maxV = Math.max(maxV, v);
+            }
+            if (f && f > 0) {
+                minF = Math.min(minF, f);
+                maxF = Math.max(maxF, f);
+            }
+        };
+
+        const hasGridHistory = gridHistory && Object.keys(gridHistory).length > 0;
+
+        // 1. Scan Grid History
+        if (hasGridHistory) {
+            Object.values(gridHistory).forEach(entry => updateBounds(entry.v, entry.f));
+        }
+
+        // 2. Scan Log (always scan for bounds to catch recent points)
+        if (log && Array.isArray(log)) {
+            log.forEach(e => updateBounds(parseFloat(e.voltage), parseFloat(e.freq)));
+        }
+
+        // 3. Scan Faults
+        faultHistory.forEach(f => updateBounds(parseFloat(f.voltage), parseFloat(f.freq)));
+
+        // 4. Scan Current Settings
+        if (currentSettings) {
+            updateBounds(parseFloat(currentSettings.voltage || currentSettings.volt), parseFloat(currentSettings.frequency || currentSettings.freq));
+        }
+
+        // Apply Snap & Padding
+        minV = Math.floor(minV / STEP_VOLT) * STEP_VOLT;
+        maxV = Math.ceil(maxV / STEP_VOLT) * STEP_VOLT;
+        minF = Math.floor(minF / STEP_FREQ) * STEP_FREQ;
+        maxF = Math.ceil(maxF / STEP_FREQ) * STEP_FREQ;
+
+        // Add 1 step padding around
+        minV -= STEP_VOLT; maxV += STEP_VOLT;
+        minF -= STEP_FREQ; maxF += STEP_FREQ;
+
+        const MIN_VOLT = minV;
+        const MAX_VOLT = maxV;
+        const MIN_FREQ = minF;
+        const MAX_FREQ = maxF;
+
         // Generate Grid Dimensions
-        // We add 1 to include the end boundary
         const numCols = Math.floor((MAX_VOLT - MIN_VOLT) / STEP_VOLT) + 1;
         const numRows = Math.floor((MAX_FREQ - MIN_FREQ) / STEP_FREQ) + 1;
 
-        // Initialize 2D Matrix (Array of rows, where each row is array of cells)
-        // matrix[rowIndex][colIndex]
+        // Initialize 2D Matrix
         const matrix = [];
         for (let r = 0; r < numRows; r++) {
             const row = [];
@@ -51,79 +93,76 @@ function renderDetailsGrid(log, faultHistory, currentSettings, currentStats = nu
                     temp: Infinity,
                     hasFault: false,
                     count: 0,
-                    // Store center value of bin for tooltip
                     volt: MIN_VOLT + (c * STEP_VOLT),
-                    freq: MIN_FREQ + (r * STEP_FREQ)
+                    freq: MIN_FREQ + (r * STEP_FREQ),
+                    sumVolt: 0,
+                    sumFreq: 0
                 });
             }
             matrix.push(row);
         }
 
-        // Helper to get bins from values
+        // Helper to get bins
         const getBin = (v, f) => {
             if (v < MIN_VOLT || v > MAX_VOLT || f < MIN_FREQ || f > MAX_FREQ) return null;
-
-            // Find closest bin center
-            // Currently using 'floor' logic relative to start
             const c = Math.round((v - MIN_VOLT) / STEP_VOLT);
             const r = Math.round((f - MIN_FREQ) / STEP_FREQ);
-
             if (r >= 0 && r < numRows && c >= 0 && c < numCols) {
                 return matrix[r][c];
             }
             return null;
         };
 
-        // 1. Process Log
-        log.forEach(e => {
-            if (!e.voltage || !e.freq) return;
-            const v = parseFloat(e.voltage);
-            const f = parseFloat(e.freq);
+        // POPULATE DATA
+        if (hasGridHistory) {
+            // Priority: Use Server Aggregated History
+            Object.values(gridHistory).forEach(entry => {
+                const cell = getBin(entry.v, entry.f);
+                if (!cell) return;
 
-            const cell = getBin(v, f);
-            if (!cell) return; // Skip out of bounds
+                cell.count += entry.cnt;
+                // History keeps track of bests (maxHash, minEff, minTemp)
+                // We use these "bests" for the heatmap coloring
+                if (entry.mh > 0) cell.hash = Math.max(cell.hash, entry.mh);
+                if (entry.me > 0 && entry.me < 1000) cell.eff = Math.min(cell.eff, entry.me);
+                if (entry.mt > 0) cell.temp = Math.min(cell.temp, entry.mt);
 
-            cell.count++;
+                // Approximate sums for tooltip average display
+                cell.sumVolt += entry.v * entry.cnt;
+                cell.sumFreq += entry.f * entry.cnt;
+            });
+        } else {
+            // Fallback: Use Log (Legacy or Empty History)
+            log.forEach(e => {
+                if (!e.voltage || !e.freq) return;
+                const v = parseFloat(e.voltage);
+                const f = parseFloat(e.freq);
+                const cell = getBin(v, f);
+                if (!cell) return;
 
-            // Hashrate (Max is best)
-            if (e.hashrate && e.hashrate > 0) {
-                cell.hash = Math.max(cell.hash, e.hashrate);
-            }
+                cell.count++;
+                if (e.hashrate && e.hashrate > 0) cell.hash = Math.max(cell.hash, e.hashrate);
 
-            // Efficiency (Min is best, ignore 0/null)
-            let eff = null;
-            if (e.power && e.hashrate > 0) {
-                eff = e.power / (e.hashrate / 1000);
-            }
-            if (eff && eff > 0 && eff < 1000) {
-                cell.eff = Math.min(cell.eff, eff);
-            }
+                let eff = null;
+                if (e.power && e.hashrate > 0) eff = e.power / (e.hashrate / 1000);
+                if (eff && eff > 0 && eff < 1000) cell.eff = Math.min(cell.eff, eff);
+                if (e.temp && e.temp > 0) cell.temp = Math.min(cell.temp, e.temp);
 
-            if (e.temp && e.temp > 0) {
-                cell.temp = Math.min(cell.temp, e.temp);
-            }
+                cell.sumVolt += v;
+                cell.sumFreq += f;
+            });
+        }
 
-            // Keep precision for tooltip
-            if (cell.sumVolt === undefined) cell.sumVolt = 0;
-            if (cell.sumFreq === undefined) cell.sumFreq = 0;
-            cell.sumVolt += v;
-            cell.sumFreq += f;
-        });
-
-        // 2. Process Faults
+        // 2. Process Faults (Overlay)
         if (faultHistory) {
             faultHistory.forEach(f => {
                 if (!f.voltage || !f.freq) return;
-                const v = parseFloat(f.voltage);
-                const freq = parseFloat(f.freq);
-                const cell = getBin(v, freq);
+                const cell = getBin(parseFloat(f.voltage), parseFloat(f.freq));
                 if (cell) cell.hasFault = true;
             });
         }
 
-        // 3. Current Settings
-        // We don't modify the cell data for current settings, we just pass the object to drawing function
-        // But we DO want to show provisional data if cell is empty
+        // 3. Current Settings (Overlay/Provisional)
         if (currentSettings && currentStats) {
             const v = parseFloat(currentSettings.voltage || currentSettings.volt || 0);
             const f = parseFloat(currentSettings.frequency || currentSettings.freq || 0);
@@ -239,7 +278,8 @@ function drawHeatmapGrid(canvasId, sharedData, metricKey, formatValueFn, inverse
 
     // Get container dimensions
     const width = containerWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 800);
-    const height = 400; // Fixed height
+    //const height = containerHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 400);
+    const height = 700; // Fixed height
 
     const availableWidth = width - padding - rightPadding;
     const availableHeight = height - bottomPadding - topPadding;

@@ -78,7 +78,7 @@ async function fetchAndRenderDetails() {
         // Check for chart functions (loaded from autotune-charts.js)
         if (typeof renderDetailsCharts === 'function') renderDetailsCharts(log);
         if (typeof renderDetailsHeatmap === 'function') renderDetailsHeatmap(log);
-        if (typeof renderDetailsGrid === 'function') renderDetailsGrid(log, data.faultHistory, currentSettings, data.currentStats);
+        if (typeof renderDetailsGrid === 'function') renderDetailsGrid(log, data.faultHistory, currentSettings, data.currentStats, data.gridHistory);
 
         renderHistoryTable(log);
 

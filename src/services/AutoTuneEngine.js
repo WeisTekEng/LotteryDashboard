@@ -449,6 +449,41 @@ class AutoTuneEngine {
 
             // --- HISTORY LOGGING ---
             state.tuningLog = state.tuningLog || [];
+
+            // GRID HISTORY AGGREGATION
+            // Create a key for this voltage/freq combo
+            state.gridHistory = state.gridHistory || {};
+            const gridKey = `${state.currentVoltage}_${state.currentFreq}`;
+
+            // Only update grid history if we have valid non-zero data
+            if (hashrate > 0 && power > 0) {
+                const existing = state.gridHistory[gridKey] || {
+                    cnt: 0,
+                    v: state.currentVoltage,
+                    f: state.currentFreq,
+                    th: 0, // Total Hash
+                    te: 0, // Total Eff
+                    tt: 0, // Total Temp
+                    mh: 0, // Max Hash
+                    me: 9999, // Best Eff (Min)
+                    mt: 999, // Min Temp
+                    l: 0   // Last Seen TS
+                };
+
+                existing.cnt++;
+                existing.th += hashrate;
+                let currentEff = power / (hashrate / 1000);
+                existing.te += currentEff;
+                existing.tt += temp;
+
+                existing.mh = Math.max(existing.mh, hashrate);
+                existing.me = Math.min(existing.me, currentEff);
+                existing.mt = Math.min(existing.mt, temp);
+                existing.l = now;
+
+                state.gridHistory[gridKey] = existing;
+            }
+
             state.tuningLog.push({
                 timestamp: now,
                 voltage: state.currentVoltage,

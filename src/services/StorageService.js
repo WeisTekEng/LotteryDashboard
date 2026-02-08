@@ -67,6 +67,7 @@ class StorageService {
                         faultHistory: item.faultHistory || [],
                         adaptiveLimits: item.adaptiveLimits || null,
                         tuningLog: item.tuningLog || [],
+                        gridHistory: item.gridHistory || {},
                         stabilizationUntil: 0,
                         restarting: false
                     });
@@ -98,9 +99,9 @@ class StorageService {
                 lastGoodFreq: state.lastGoodFreq || null,
                 faultCounter: state.faultCounter || 0,
                 faultHistory: state.faultHistory || [],
-                faultHistory: state.faultHistory || [],
                 adaptiveLimits: state.adaptiveLimits || null,
-                tuningLog: state.tuningLog || []
+                tuningLog: state.tuningLog || [],
+                gridHistory: state.gridHistory || {}
             }));
             fs.writeFileSync(CONFIG.FILES.AUTOTUNE, JSON.stringify(data, null, 2));
         } catch (e) {

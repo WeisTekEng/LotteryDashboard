@@ -341,6 +341,7 @@ app.get('/api/autotune/:ip/details', (req, res) => {
     ip,
     mode: state.mode,
     tuningLog: state.tuningLog || [],
+    gridHistory: state.gridHistory || {},
     adaptiveLimits: state.adaptiveLimits,
     faultHistory: state.faultHistory || [],
     currentSettings: {
