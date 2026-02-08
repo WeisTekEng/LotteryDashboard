@@ -64,6 +64,30 @@ The dashboard includes a "Live Logs" page for real-time monitoring:
 -   **Discovery Events**: Track when new devices are found on your network.
 -   **Network Status**: Real-time feedback on API communication and stats fetching.
 
+## Miner Details & Analysis
+
+Clicking on any miner in the dashboard opens the **Miner Details Modal**, a comprehensive suite of tools for analyzing performance and tuning behavior.
+
+### Performance Heatmaps
+The dashboard renders three interactive heatmaps (grids) to visualize the miner's efficiency across its entire operating range:
+-   **X-Axis**: Core Voltage (mV) - Dynamic range based on device limits.
+-   **Y-Axis**: Frequency (MHz) - Dynamic range based on device capabilities.
+-   **Persistence**: The grid remembers the best stats for *every* voltage/frequency combination visited, persisting even after server restarts.
+
+**The Grids:**
+1.  **Hashrate Grid**: Shows max hashrate achieved at each setting. (Green = High)
+2.  **Efficiency Grid**: Shows best efficiency (J/TH) achieved. (Green = Efficient/Low)
+3.  **Temperature Grid**: Shows lowest stable temp achieved. (Green = Cool)
+
+### Tuning History
+A chronological log of every action taken by the Auto-Tune Engine, including:
+-   Timestamp & Action taken (e.g., "increase_freq_efficiency")
+-   Resulting Voltage, Frequency, Hashrate, Power, and Error Rate.
+
+### Fault Analysis
+-   **Fault History**: Tracks the last 50 critical faults (e.g., Overheat, Voltage Drift, API Failure).
+-   **Adaptive Limits**: Visualizes the "Safe Zone" learned by the engine. The engine will not attempt settings above these limits unless manually reset.
+
 ## Installation and use
 
 ### (Option 1) Non-Docker Setup run straight from the repo on your computer.

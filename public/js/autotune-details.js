@@ -81,6 +81,7 @@ async function fetchAndRenderDetails() {
         if (typeof renderDetailsGrid === 'function') renderDetailsGrid(log, data.faultHistory, currentSettings, data.currentStats, data.gridHistory);
 
         renderHistoryTable(log);
+        renderFaultHistory(data.faultHistory);
 
     } catch (e) {
         console.error('Error loading details:', e);
@@ -131,13 +132,33 @@ function renderHistoryTable(log) {
     const tbody = document.getElementById('detailsHistoryTable');
     if (!tbody) return;
 
-    tbody.innerHTML = log.slice().reverse().slice(0, 50).map(e => `
+    tbody.innerHTML = log.slice().reverse().slice(0, 1000).map(e => `
         <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
             <td style="padding: 8px; color: #94a3b8;">${new Date(e.timestamp).toLocaleTimeString()}</td>
             <td style="padding: 8px;">${e.action}</td>
             <td style="padding: 8px;">${e.voltage}mV</td>
             <td style="padding: 8px;">${e.freq}MHz</td>
             <td style="padding: 8px; color: #10b981;">${e.hashrate}</td>
+        </tr>
+    `).join('');
+}
+
+function renderFaultHistory(faultHistory) {
+    const tbody = document.getElementById('detailsFaultTable');
+    if (!tbody) return;
+
+    if (!faultHistory || faultHistory.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 1rem; text-align: center; color: #64748b;">No faults recorded.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = faultHistory.slice().reverse().map(f => `
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 8px; color: #94a3b8;">${new Date(f.timestamp).toLocaleString()}</td>
+            <td style="padding: 8px; color: #ef4444;">${f.reason}</td>
+            <td style="padding: 8px;">${f.voltage || '-'}mV</td>
+            <td style="padding: 8px;">${f.freq || '-'}MHz</td>
+            <td style="padding: 8px;">${f.limitsAdapted ? '<span style="color: #f59e0b;">Yes</span>' : '<span style="color: #64748b;">No</span>'}</td>
         </tr>
     `).join('');
 }

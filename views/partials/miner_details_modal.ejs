@@ -1,6 +1,7 @@
 <!-- Miner Details Modal (Charts & Heatmap) -->
 <div id="minerDetailsModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 1400px; width: 95%; height: 85%;">
+    <div class="modal-content"
+        style="max-width: 1400px; width: 95%; height: 85%; display: flex; flex-direction: column;">
         <div class="modal-header">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <span class="modal-title" id="minerDetailsTitle">AATE Miner Details</span>
@@ -15,9 +16,10 @@
             </div>
             <button class="modal-close" onclick="closeMinerDetailsModal()">×</button>
         </div>
-        <div class="modal-body" style="padding: 0;">
+        <div class="modal-body" style="padding: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
             <!-- Tabs -->
-            <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+            <div
+                style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); flex-shrink: 0;">
                 <button onclick="switchDetailsTab('performance')" class="tab-btn active" id="tab-btn-performance"
                     style="flex: 1; padding: 1rem; background: none; border: none; color: #f8fafc; cursor: pointer; border-bottom: 2px solid #3b82f6;">
                     Performance Graphs
@@ -38,13 +40,17 @@
                     style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
                     Temp Map
                 </button>
+                <button onclick="switchDetailsTab('faults')" class="tab-btn" id="tab-btn-faults"
+                    style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
+                    Fault Analysis
+                </button>
                 <button onclick="switchDetailsTab('history')" class="tab-btn" id="tab-btn-history"
                     style="flex: 1; padding: 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;">
                     Log History
                 </button>
             </div>
 
-            <div style="padding: 1.5rem; height: 900px; overflow-y: auto;">
+            <div style="padding: 1.5rem; flex: 1; overflow-y: auto;">
                 <!-- Performance Tab -->
                 <div id="tab-performance" class="details-tab">
                     <div style="margin-bottom: 2rem;">
@@ -111,6 +117,23 @@
                     </div>
                 </div>
 
+                <!-- Fault Analysis Tab -->
+                <div id="tab-faults" class="details-tab" style="display: none;">
+                    <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; color: #cbd5e1;">
+                        <thead>
+                            <tr style="text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <th style="padding: 8px;">Time</th>
+                                <th style="padding: 8px;">Reason</th>
+                                <th style="padding: 8px;">Volt</th>
+                                <th style="padding: 8px;">Freq</th>
+                                <th style="padding: 8px;">New Limits?</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsFaultTable">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- History Tab -->
                 <div id="tab-history" class="details-tab" style="display: none;">

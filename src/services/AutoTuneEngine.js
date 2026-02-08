@@ -494,8 +494,8 @@ class AutoTuneEngine {
                 errorRate: smoothErrorRate,
                 action: state.lastAction || 'maintain' // Log the action that RESULTED in this state (approx) or current
             });
-            // Limit log size (500 entries ~ 1-2 days depending on interval)
-            if (state.tuningLog.length > 500) {
+            // Limit log size (10000 entries ~ 24h+ depending on interval)
+            if (state.tuningLog.length > 10000) {
                 state.tuningLog.shift();
             }
 
