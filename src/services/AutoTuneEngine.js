@@ -558,7 +558,7 @@ class AutoTuneEngine {
                     };
 
                     const safetyMarginV = config.voltageStep * 2;
-                    const safetyMarginF = config.freqStep * 3;
+                    const safetyMarginF = config.freqStep;
 
                     const newMaxVoltage = Math.max(config.minVoltage, faultVoltage - safetyMarginV);
                     const newMaxFreq = Math.max(config.minFreq, faultFreq - safetyMarginF);
@@ -594,14 +594,16 @@ class AutoTuneEngine {
 
                     // NEW: Use PLL curve for recovery if available
                     let targetVoltage, targetFreq;
+
+                    // Recover to learned limits minus 5 steps to avoid long ramp up
+                    targetFreq = Math.max(config.minFreq, state.adaptiveLimits.maxFreq - (config.freqStep * 5));
+
                     if (state.asicModel) {
-                        targetFreq = config.minFreq + (config.freqStep * 10);
                         targetVoltage = this.getRecommendedVoltage(targetFreq, state.asicModel, state.deviceType) ||
-                            (config.minVoltage + (config.voltageStep * 5));
-                        console.log(`[AutoTune] ${ip}: Using PLL recovery: ${targetVoltage}mV for ${targetFreq}MHz`);
+                            Math.max(config.minVoltage, state.adaptiveLimits.maxVoltage - (config.voltageStep * 5));
+                        console.log(`[AutoTune] ${ip}: Using PLL recovery: ${targetVoltage}mV for ${targetFreq}MHz (Limit - 5 steps)`);
                     } else {
-                        targetVoltage = Math.min(config.minVoltage + (config.voltageStep * 5), state.adaptiveLimits.maxVoltage);
-                        targetFreq = Math.min(config.minFreq + (config.freqStep * 10), state.adaptiveLimits.maxFreq);
+                        targetVoltage = Math.max(config.minVoltage, state.adaptiveLimits.maxVoltage - (config.voltageStep * 5));
                     }
 
                     console.warn(`[AutoTune] ${ip}: CRITICAL FAULT CONFIRMED! Reason: ${reasons.join(', ')}. Reverting to safe baseline (${targetVoltage}mV/${targetFreq}MHz) and restarting...`);

@@ -28,8 +28,33 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // Main Route
+const fs = require('fs');
+const { execSync } = require('child_process');
+
 app.get('/', (req, res) => {
-  res.render('index');
+  let version = 'Unknown';
+  let gitBranch = 'Unknown';
+  let gitHash = 'Unknown';
+
+  try {
+    version = fs.readFileSync(path.join(__dirname, 'version.txt'), 'utf8').trim();
+  } catch (e) {
+    console.warn('Could not read version.txt', e.message);
+  }
+
+  try {
+    gitBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+    gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+  } catch (e) {
+    console.warn('Could not fetch git info', e.message);
+  }
+
+  res.render('index', {
+    version,
+    gitBranch,
+    gitHash,
+    gitRepo: 'https://github.com/WeisTekEng/LotteryDashboard'
+  });
 });
 
 // --- Socket.io ---
