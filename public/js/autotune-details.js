@@ -108,6 +108,11 @@ function exportTuningLog() {
     window.location.href = `/api/autotune/${currentDetailsIp}/export`;
 }
 
+function exportGridHistory() {
+    if (!currentDetailsIp) return;
+    window.location.href = `/api/autotune/${currentDetailsIp}/export-grid`;
+}
+
 function switchDetailsTab(tabName) {
     // Buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {

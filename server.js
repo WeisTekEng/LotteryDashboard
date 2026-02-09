@@ -420,6 +420,34 @@ app.get('/api/autotune/:ip/export', (req, res) => {
   res.attachment(`autotune_export_${ip}_${Date.now()}.csv`);
   res.send(csv);
 });
+
+app.get('/api/autotune/:ip/export-grid', (req, res) => {
+  const { ip } = req.params;
+  const state = autoTuneEngine.autoTuneStates.get(ip);
+
+  if (!state || !state.gridHistory) {
+    return res.status(404).send('No grid history found for this miner.');
+  }
+
+  const log = state.gridHistory;
+
+  // CSV Header
+  let csv = 'Timestamp,Voltage(mV),Frequency(MHz),Hashrate(GH/s),Power(W),Efficiency(J/TH),Temp(C),ErrorRate(%)\n';
+
+  // CSV Rows
+  log.forEach(row => {
+    const time = new Date(row.timestamp).toISOString();
+    const eff = (row.power && row.hashrate) ? (row.power / (row.hashrate / 1000)).toFixed(2) : '';
+    const err = (row.errorRate * 100).toFixed(2);
+
+    csv += `${time},${row.voltage},${row.freq},${row.hashrate},${row.power || ''},${eff},${row.temp || ''},${err}\n`;
+  });
+
+  res.header('Content-Type', 'text/csv');
+  res.attachment(`autotune_export_grid_${ip}_${Date.now()}.csv`);
+  res.send(csv);
+});
+
 minerService.startBackgroundJobs();
 scannerService.start();
 autoTuneEngine.startLoop();
