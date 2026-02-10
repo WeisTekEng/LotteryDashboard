@@ -83,12 +83,21 @@ udpSocket.on('message', (msg, rinfo) => {
     const ip = data.ip || rinfo.address;
 
     const existing = minerService.miners[id] || {};
-    minerService.miners[id] = {
+
+    // Create normalized update object (similar to MinerService.pollHttpMiner)
+    const update = {
       ...existing,
       ...data,
       lastSeen: Date.now(),
-      ip: ip
+      ip: ip,
+      // Ensure numeric stats are parsed correctly
+      valid: parseInt(data.sharesAccepted) || existing.valid || 0,
+      rejected: parseInt(data.sharesRejected) || parseInt(data.rejected) || existing.rejected || 0,
+      hwErrors: data.hashrateMonitor?.asics?.[0]?.errorCount || existing.hwErrors || 0,
+      errorPercentage: data.errorPercentage ? parseFloat(data.errorPercentage).toFixed(2) : existing.errorPercentage
     };
+
+    minerService.miners[id] = update;
 
     if (!existing.address) {
       minerService.fetchMinerConfig(ip, id);
