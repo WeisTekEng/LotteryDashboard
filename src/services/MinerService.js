@@ -62,6 +62,8 @@ class MinerService {
                 vrTemp: data.vrTemp ? data.vrTemp.toFixed(1) : null,
                 uptime: data.uptimeSeconds,
                 valid: data.sharesAccepted,
+                rejected: data.sharesRejected || 0,
+                hwErrors: data.hashrateMonitor?.asics?.[0]?.errorCount || 0,
                 bestDiff: data.bestDiff,
                 bestSessionDiff: data.bestSessionDiff,
                 pool: data.isUsingFallbackStratum ? data.fallbackStratumURL : data.stratumURL,

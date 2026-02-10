@@ -506,6 +506,9 @@ class AutoTuneEngine {
                 console.log(`[AutoTune] ${ip}: Detected ASIC model: ${state.asicModel || 'Unknown'}`);
             }
             if (!state.deviceType) {
+                // DEBUG: Log all API data for device detection
+                console.log(`[AutoTune Debug] ${ip}: API Data for detection:`, JSON.stringify(data));
+
                 state.deviceType = this.detectDeviceType(data);
                 const deviceLimits = DEVICE_VOLTAGE_LIMITS[state.deviceType];
                 console.log(`[AutoTune] ${ip}: Detected device type: ${state.deviceType} (Max: ${deviceLimits.maxVoltage}mV / ${deviceLimits.maxFreq}MHz)`);
@@ -596,6 +599,7 @@ class AutoTuneEngine {
                     let targetVoltage, targetFreq;
 
                     // Recover to learned limits minus 5 steps to avoid long ramp up
+                    // Ensure we don't go below minFreq
                     targetFreq = Math.max(config.minFreq, state.adaptiveLimits.maxFreq - (config.freqStep * 5));
 
                     if (state.asicModel) {
@@ -974,13 +978,35 @@ class AutoTuneEngine {
     }
 
     async applySettings(ip, voltage, freq, restart = false) {
-        const sentVoltage = Math.round(voltage);
-        console.log(`[AutoTune] ${ip}: Sending command -> ${sentVoltage}mV (${voltage.toFixed(2)}), ${freq}MHz`);
+
+        let sentFreq;
+        let sentVoltage;
+        const state = this.autoTuneStates.get(ip);
+
+        // Strategy: Default to 2 decimals (float) as requested for official OS.
+        // integer round IF we detect "NerdQAxe" or if the user configures it.
+        // Since we don't have a config flag for this yet, and I can't see the exact model string,
+        // likely the best approach is to check if `state.asicModel` contains "Gamma" or "Nerd".
+        const isNerdQAxe = state && (
+            (state.miner && state.miner.includes('Nerd'))
+            // Note: Gamma devices are excluded as they support floats
+        );
+
+        if (isNerdQAxe) {
+            sentFreq = Math.round(freq);
+            sentVoltage = Math.round(voltage);
+        } else {
+            sentFreq = parseFloat(freq.toFixed(2));
+            sentVoltage = parseFloat(voltage.toFixed(2));
+        }
+
+        const modeStr = state?.mode ? `[${state.mode.toUpperCase()}]` : '[NORMAL]';
+        console.log(`[AutoTune] ${ip} ${modeStr}: Sending command -> ${sentVoltage}mV (${voltage.toFixed(2)}), ${sentFreq}MHz${isNerdQAxe ? ' (Rounded for NerdQAxe)' : ' (Float)'}`);
         try {
             const res = await fetch(`http://${ip}/api/system`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ coreVoltage: sentVoltage, frequency: freq })
+                body: JSON.stringify({ coreVoltage: sentVoltage, frequency: sentFreq })
             });
             if (!res.ok) {
                 const text = await res.text();

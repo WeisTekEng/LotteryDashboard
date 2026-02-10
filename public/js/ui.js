@@ -116,6 +116,20 @@ function updateCardHTML(miner) {
                         <span class="stat-label">Valid Shares</span>
                         <span class="stat-value">${miner.valid}</span>
                     </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Rejected</span>
+                        <span class="stat-value" style="color: #ef4444;">${miner.rejected || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Error Rate</span>
+                        <span class="stat-value">${(() => {
+            const v = parseInt(miner.valid) || 0;
+            const r = parseInt(miner.rejected) || 0;
+            const total = v + r;
+            const rate = total > 0 ? ((r / total) * 100).toFixed(2) : '0.00';
+            return `${rate}%`;
+        })()}</span>
+                    </div>
                     ${miner.source === 'http' ? '' : `<div class="stat-item">
                         <span class="stat-label">Templates</span>
                         <span class="stat-value">${formatCount(parseFloat(miner.templates) || 0)}</span>
@@ -131,7 +145,7 @@ function updateCardHTML(miner) {
                         <span class="stat-label">Temp (Core/VRM)</span>
                         <span class="stat-value ${tempClass}">
                             ${miner.temp}°C
-                            ${miner.vrTemp ? `<span style="font-size: 0.8rem; color: #94a3b8;"> / ${miner.vrTemp}°C</span>` : ''}
+                            ${miner.vrTemp ? ` / ${miner.vrTemp}°C` : ''}
                         </span>
                     </div>
                     <div class="stat-item">
