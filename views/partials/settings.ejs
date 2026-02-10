@@ -9,8 +9,34 @@
         <button onclick="saveGlobalConfig()" class="btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">Save
             All Settings</button>
     </div>
-    <div id="config-editor-cards" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
-        <!-- Dynamic cards will be injected here -->
-        <div style="color: #94a3b8;">Loading configuration...</div>
+
+    <!-- Settings Tabs -->
+    <div class="modal-tabs"
+        style="margin-bottom: 1.5rem; background: transparent; border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <button onclick="switchSettingsTab('network')" class="modal-tab-btn active" id="btn-settings-network">
+            Network & Ports
+        </button>
+        <button onclick="switchSettingsTab('limits')" class="modal-tab-btn" id="btn-settings-limits">
+            Performance Limits
+        </button>
+        <button onclick="switchSettingsTab('autotune')" class="modal-tab-btn" id="btn-settings-autotune">
+            Auto-Tune Profiles
+        </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div id="settings-tab-network" class="settings-tab-content">
+        <div id="config-container-network" class="grid"
+            style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));"></div>
+    </div>
+
+    <div id="settings-tab-limits" class="settings-tab-content" style="display: none;">
+        <div id="config-container-limits" class="grid"
+            style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));"></div>
+    </div>
+
+    <div id="settings-tab-autotune" class="settings-tab-content" style="display: none;">
+        <div id="config-container-autotune" class="grid"
+            style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));"></div>
     </div>
 </section>

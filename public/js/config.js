@@ -4,9 +4,25 @@
 // --- Global Configuration Editor ---
 let globalConfig = null;
 
+// --- Settings Tab Logic ---
+function switchSettingsTab(tabName) {
+    // Hide all contents
+    document.querySelectorAll('.settings-tab-content').forEach(el => el.style.display = 'none');
+
+    // Deactivate all buttons
+    document.querySelectorAll('#settings-view .modal-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Show selected content & activate button
+    const content = document.getElementById(`settings-tab-${tabName}`);
+    const btn = document.getElementById(`btn-settings-${tabName}`);
+
+    if (content) content.style.display = 'block';
+    if (btn) btn.classList.add('active');
+}
+
 async function loadGlobalConfig() {
-    const container = document.getElementById('config-editor-cards');
-    if (!container) return;
+    // Check if any container exists
+    if (!document.getElementById('config-container-network')) return;
 
     try {
         const res = await fetch('/api/config');
@@ -14,7 +30,9 @@ async function loadGlobalConfig() {
         globalConfig = await res.json();
         renderConfigEditor(globalConfig);
     } catch (e) {
-        container.innerHTML = `<div style="color: #ef4444;">Error loading config: ${e.message}</div>`;
+        // Fallback error display in network tab
+        const container = document.getElementById('config-container-network');
+        if (container) container.innerHTML = `<div style="color: #ef4444;">Error loading config: ${e.message}</div>`;
     }
 }
 
@@ -31,12 +49,16 @@ function getUnitLabel(key) {
 }
 
 function renderConfigEditor(config) {
-    const container = document.getElementById('config-editor-cards');
-    if (!container) return;
-    container.innerHTML = '';
+    const netContainer = document.getElementById('config-container-network');
+    const limitsContainer = document.getElementById('config-container-limits');
+    const tuneContainer = document.getElementById('config-container-autotune');
+
+    if (netContainer) netContainer.innerHTML = '';
+    if (limitsContainer) limitsContainer.innerHTML = '';
+    if (tuneContainer) tuneContainer.innerHTML = '';
 
     // Helper to create a setting card
-    const createCard = (title, settings, pathPrefix) => {
+    const createCard = (title, settings, pathPrefix, subtitle = '') => {
         const card = document.createElement('div');
         card.className = 'miner-card';
         card.style.height = 'auto';
@@ -45,7 +67,7 @@ function renderConfigEditor(config) {
             <div class="card-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 0;">
                 <div>
                     <div class="miner-id" style="font-size: 1.1rem; color: #f8fafc;">${title}</div>
-                    <div class="miner-ip" style="font-size: 0.75rem;">${title.includes('Auto-Tune') ? 'Tuning Profile' : 'System Parameters'}</div>
+                    ${subtitle ? `<div class="miner-ip" style="font-size: 0.75rem;">${subtitle}</div>` : ''}
                 </div>
             </div>
             <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
@@ -53,7 +75,7 @@ function renderConfigEditor(config) {
             if (typeof value === 'object' && value !== null) return ''; // Skip nested here
             const unit = getUnitLabel(key);
             return `
-                        <div class="form-group" style="margin-bottom: 0;">
+                        <div class="form-group config-input-group" style="margin-bottom: 0;">
                             <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">${key}${unit}</label>
                             <input type="${typeof value === 'number' ? 'number' : 'text'}" 
                                    class="form-input" 
@@ -68,20 +90,26 @@ function renderConfigEditor(config) {
         return card;
     };
 
-    container.appendChild(createCard('Dashboard Network', config.PORTS, 'PORTS'));
-    container.appendChild(createCard('Performance Limits', config.LIMITS, 'LIMITS'));
+    if (netContainer && config.PORTS) {
+        netContainer.appendChild(createCard('Dashboard Network', config.PORTS, 'PORTS', 'Port Configuration'));
+    }
+
+    if (limitsContainer && config.LIMITS) {
+        limitsContainer.appendChild(createCard('Performance Limits', config.LIMITS, 'LIMITS', 'Safety Thresholds'));
+    }
 
     // AutoTune Profiles
-    if (config.AUTOTUNE) {
+    if (tuneContainer && config.AUTOTUNE) {
         for (const [profile, settings] of Object.entries(config.AUTOTUNE)) {
             const title = profile.charAt(0).toUpperCase() + profile.slice(1);
-            container.appendChild(createCard(`Auto-Tune: ${title}`, settings, `AUTOTUNE.${profile}`));
+            tuneContainer.appendChild(createCard(`Profile: ${title}`, settings, `AUTOTUNE.${profile}`, 'Auto-Tune Parameters'));
         }
     }
 }
 
 async function saveGlobalConfig() {
-    const inputs = document.querySelectorAll('#config-editor-cards input');
+    // Select inputs from all config containers
+    const inputs = document.querySelectorAll('.config-input-group input');
     const newConfig = JSON.parse(JSON.stringify(globalConfig)); // Deep clone
 
     inputs.forEach(input => {
