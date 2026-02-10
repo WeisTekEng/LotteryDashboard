@@ -145,7 +145,7 @@ function updateCardHTML(miner) {
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Temp (Core/VRM)</span>
-                        <span class="stat-value ${tempClass}">
+                        <span class="stat-value ${tempClass}" style="white-space: nowrap;">
                             ${miner.temp}°C
                             ${miner.vrTemp ? ` / ${miner.vrTemp}°C` : ''}
                         </span>

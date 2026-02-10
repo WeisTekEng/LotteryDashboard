@@ -204,3 +204,19 @@ function updateLuckStats() {
         }
     }
 }
+
+// Global Refresh Timer (Visual Countdown)
+function startGlobalRefreshTimer() {
+    setInterval(() => {
+        const timers = document.querySelectorAll('.global-refresh-timer');
+        timers.forEach(t => {
+            let val = parseInt(t.innerText);
+            if (isNaN(val)) val = 5;
+            val--;
+            if (val < 0) val = 5;
+            t.innerText = val;
+        });
+    }, 1000);
+}
+
+startGlobalRefreshTimer();
