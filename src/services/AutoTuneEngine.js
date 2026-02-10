@@ -260,7 +260,20 @@ class AutoTuneEngine {
     detectDeviceType(minerData) {
         const deviceName = (minerData.deviceModel || minerData.miner || minerData.hostname || '').toLowerCase();
         const version = (minerData.version || '').toLowerCase();
+        const boardVersion = (minerData.boardVersion || '').toLowerCase();
 
+        // 1. Board Version Detection (Most Reliable)
+        if (boardVersion.includes('rev 6') || boardVersion.includes('rev 5')) {
+            return '12V'; // NerdQAxe++ (Rev 6.1, 5.1, etc)
+        }
+        if (boardVersion.includes('800')) {
+            return '12V'; // Bitaxe GT 800
+        }
+        if (boardVersion.includes('601')) {
+            return 'Gamma601';
+        }
+
+        // 2. Name-based / Other Detection (Fallback)
         // NerdqAxe++ detection (12V)
         if (deviceName.includes('nerdqaxe') || deviceName.includes('nerdq')) {
             return '12V';
@@ -501,13 +514,21 @@ class AutoTuneEngine {
 
 
             // NEW: Detect ASIC model and device type (once)
+            if (data.boardVersion && !state.boardVersion) {
+                state.boardVersion = data.boardVersion;
+            }
+
             if (!state.asicModel) {
                 state.asicModel = this.detectASICModel(data);
                 console.log(`[AutoTune] ${ip}: Detected ASIC model: ${state.asicModel || 'Unknown'}`);
             }
             if (!state.deviceType) {
-                // DEBUG: Log all API data for device detection
-                console.log(`[AutoTune Debug] ${ip}: API Data for detection:`, JSON.stringify(data));
+                // DEBUG: Log all API data for device detection (Sanitized)
+                const sanitizedData = { ...data };
+                const sensitiveKeys = ['ssid', 'wifiStatus', 'wifiRSSI', 'macAddr', 'stratumUser', 'fallbackStratumUser', 'wifiPassword'];
+                sensitiveKeys.forEach(k => { if (sanitizedData[k]) sanitizedData[k] = '***'; });
+
+                console.log(`[AutoTune Debug] ${ip}: API Data for detection:`, JSON.stringify(sanitizedData));
 
                 state.deviceType = this.detectDeviceType(data);
                 const deviceLimits = DEVICE_VOLTAGE_LIMITS[state.deviceType];
@@ -987,9 +1008,13 @@ class AutoTuneEngine {
         // integer round IF we detect "NerdQAxe" or if the user configures it.
         // Since we don't have a config flag for this yet, and I can't see the exact model string,
         // likely the best approach is to check if `state.asicModel` contains "Gamma" or "Nerd".
-        const isNerdQAxe = state && (
-            (state.miner && state.miner.includes('Nerd'))
-            // Note: Gamma devices are excluded as they support floats
+        const boardVersion = (state && state.boardVersion) ? state.boardVersion.toLowerCase() : '';
+        // NerdQAxe users: board version "Rev 6.x" or "Rev 5.x", or "Nerd" in name
+        // Gamma users: board version "601", or "Gamma" in name
+        const isNerdQAxe = (
+            boardVersion.includes('rev 6') ||
+            boardVersion.includes('rev 5') ||
+            (state && state.miner && state.miner.toLowerCase().includes('nerd'))
         );
 
         if (isNerdQAxe) {
