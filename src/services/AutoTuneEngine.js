@@ -266,7 +266,7 @@ class AutoTuneEngine {
         if (boardVersion.includes('rev 6') || boardVersion.includes('rev 5')) {
             return '12V'; // NerdQAxe++ (Rev 6.1, 5.1, etc)
         }
-        if (boardVersion.includes('800')) {
+        if (boardVersion.includes('602')) {
             return '12V'; // Bitaxe GT 800
         }
         if (boardVersion.includes('601')) {
