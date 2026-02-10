@@ -255,6 +255,7 @@ class AutoTuneEngine {
 
         // Device-based detection (Gamma uses BM1370)
         if (deviceName.includes('gamma')) return 'BM1370';
+        if (deviceName.includes('nerdqaxe')) return 'BM1370';
         if (deviceName.includes('hex')) return 'BM1368';
 
         return null; // Unknown chip
@@ -268,7 +269,13 @@ class AutoTuneEngine {
         const version = (minerData.version || '').toLowerCase();
         const boardVersion = (minerData.boardVersion || '').toLowerCase();
 
-        // 1. Board Version Detection (Most Reliable)
+
+        // 1. Explicit Device Model Check (NerdQAxe++ uses deviceModel)
+        if (minerData.deviceModel && minerData.deviceModel.toLowerCase().includes('nerdqaxe')) {
+            return '12V';
+        }
+
+        // 2. Board Version Detection (Most Reliable)
         if (boardVersion.includes('rev 6') || boardVersion.includes('rev 5')) {
             return '12V'; // NerdQAxe++ (Rev 6.1, 5.1, etc)
         }
