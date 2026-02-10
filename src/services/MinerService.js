@@ -61,9 +61,10 @@ class MinerService {
                 temp: data.temp.toFixed(1),
                 vrTemp: data.vrTemp ? data.vrTemp.toFixed(1) : null,
                 uptime: data.uptimeSeconds,
-                valid: data.sharesAccepted,
-                rejected: data.sharesRejected || 0,
+                valid: parseInt(data.sharesAccepted) || 0,
+                rejected: parseInt(data.sharesRejected) || parseInt(data.rejected) || 0,
                 hwErrors: data.hashrateMonitor?.asics?.[0]?.errorCount || 0,
+                errorPercentage: data.errorPercentage ? parseFloat(data.errorPercentage).toFixed(2) : null,
                 bestDiff: data.bestDiff,
                 bestSessionDiff: data.bestSessionDiff,
                 pool: data.isUsingFallbackStratum ? data.fallbackStratumURL : data.stratumURL,
@@ -80,6 +81,8 @@ class MinerService {
             };
 
             this.miners[minerData.id] = minerData;
+            // DEBUG: Check stats being sent
+            // console.log(`[MinerService] ${minerData.ip} -> Valid: ${minerData.valid}, Rejected: ${minerData.rejected}`);
             this.io.emit('miner_update', minerData);
         } catch (e) {
             // Ignore

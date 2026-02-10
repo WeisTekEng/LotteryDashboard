@@ -222,10 +222,16 @@ const DEVICE_VOLTAGE_LIMITS = {
     // Bitaxe Gamma 601 (5V but higher limits than standard)
     'Gamma601': {
         minVoltage: 1100,
-        maxVoltage: 1400,  // Higher than standard 5V
+        maxVoltage: 1400,  // Gamma supports up to 1.4V core, supposidly 1.5 but im not pushing it.
         maxFreq: 1200,
         safetyMargin: 25
     }
+};
+
+const INPUT_VOLTAGE_LIMITS = {
+    '5V': { min: 4800, max: 5800 },
+    'Gamma601': { min: 4800, max: 5800 },
+    '12V': { min: 11000, max: 13000 }
 };
 
 class AutoTuneEngine {
@@ -550,7 +556,15 @@ class AutoTuneEngine {
             const isUnderperforming = expectedHashrate > 100 && hashrate < (expectedHashrate * 0.05);
             const isFallbackFault = isUnderperforming && power < 10.0 && state.currentFreq > config.minFreq;
             const isVrTooHot = vrTemp >= config.maxVrTemp;
-            const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < config.minInputVolts || inputVolts > config.maxInputVolts);
+
+            // Dynamic Input Voltage Limits
+            const inputLimits = INPUT_VOLTAGE_LIMITS[state.deviceType] || INPUT_VOLTAGE_LIMITS['5V'];
+            // If inputVolts is reported in Volts (e.g. 12.0), convert to mV for comparison if limits are in mV
+            // However, the API seems to return mV for voltage (5046.875), but earlier I saw code dividing by 1000.
+            // Let's use the raw value matching the config scale (assuming mV).
+            // InputVolts read from data.voltage (5046) -> that is mV.
+
+            const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < inputLimits.min || inputVolts > inputLimits.max);
             const isPowerTooHigh = power > config.maxWatts;
 
             const isCriticalFault = hasApiFault || isFallbackFault || isInputVoltsOutOfRange;
