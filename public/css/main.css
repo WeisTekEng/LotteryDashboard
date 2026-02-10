@@ -389,3 +389,127 @@ h1 {
     cursor: not-allowed;
     transform: none;
 }
+
+/* Responsive Modal Adjustments */
+.modal-responsive-container {
+    max-width: 1400px;
+    width: 95%;
+    height: 85%;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.2);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.modal-tab-btn {
+    flex: 1;
+    padding: 1rem;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    min-width: 140px; /* Ensure clickability on mobile */
+    font-size: 0.9rem;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.modal-tab-btn:hover {
+    color: #cbd5e1;
+}
+
+.modal-tab-btn.active {
+    color: #f8fafc;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.chart-container-sm {
+    height: 275px;
+    position: relative;
+    width: 100%;
+}
+
+.chart-container-lg {
+    height: 550px;
+    position: relative;
+    width: 100%;
+}
+
+.chart-container-xl {
+    height: 600px;
+    width: 100%;
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .modal-responsive-container {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        border-radius: 0;
+    }
+
+    .modal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .modal-toolbar {
+        width: 100%;
+        gap: 0.5rem;
+    }
+    
+    .modal-close {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .modal-title {
+        font-size: 1.1rem;
+        width: 90%; /* Leave space for close button */
+    }
+
+    .modal-body {
+        padding: 0;
+    }
+
+    .details-tab {
+        padding: 1rem !important; /* Override inline padding */
+    }
+
+    .chart-container-sm {
+        height: 220px;
+    }
+    
+    .chart-container-lg, .chart-container-xl {
+        height: 400px;
+    }
+    
+    /* Adjust buttons in toolbar for mobile */
+    .modal-toolbar button {
+        flex: 1;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
