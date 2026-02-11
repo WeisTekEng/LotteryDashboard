@@ -212,12 +212,19 @@ const DEVICE_VOLTAGE_LIMITS = {
         maxFreq: 1200,
         safetyMargin: 20   // mV to add to PLL recommendation
     },
-    // 12V Input Devices (NerdqAxe++, Bitaxe GT 800, etc.)
+    // 12V Input Devices (Bitaxe GT 800, etc.)
     '12V': {
         minVoltage: 1100,
-        maxVoltage: 1400,  // Can push higher with 12V input
+        maxVoltage: 1400,
         maxFreq: 1200,
-        safetyMargin: 30   // Slightly higher safety margin for 12V
+        safetyMargin: 30
+    },
+    // NerdQAxe++ (12V based)
+    'NerdQAxe': {
+        minVoltage: 1100,
+        maxVoltage: 1400,
+        maxFreq: 1200,
+        safetyMargin: 30
     },
     // Bitaxe Gamma 601 (5V but higher limits than standard)
     'Gamma601': {
@@ -231,7 +238,8 @@ const DEVICE_VOLTAGE_LIMITS = {
 const INPUT_VOLTAGE_LIMITS = {
     '5V': { min: 4800, max: 5800 },
     'Gamma601': { min: 4800, max: 5800 },
-    '12V': { min: 11000, max: 13000 }
+    '12V': { min: 11000, max: 13000 },
+    'NerdQAxe': { min: 11000, max: 13000 }
 };
 
 class AutoTuneEngine {
@@ -272,12 +280,12 @@ class AutoTuneEngine {
 
         // 1. Explicit Device Model Check (NerdQAxe++ uses deviceModel)
         if (minerData.deviceModel && minerData.deviceModel.toLowerCase().includes('nerdqaxe')) {
-            return '12V';
+            return 'NerdQAxe';
         }
 
         // 2. Board Version Detection (Most Reliable)
         if (boardVersion.includes('rev 6') || boardVersion.includes('rev 5')) {
-            return '12V'; // NerdQAxe++ (Rev 6.1, 5.1, etc)
+            return 'NerdQAxe'; // NerdQAxe++ (Rev 6.1, 5.1, etc)
         }
         if (boardVersion.includes('602')) {
             return '12V'; // Bitaxe GT 800
@@ -287,9 +295,8 @@ class AutoTuneEngine {
         }
 
         // 2. Name-based / Other Detection (Fallback)
-        // NerdqAxe++ detection (12V)
         if (deviceName.includes('nerdqaxe') || deviceName.includes('nerdq')) {
-            return '12V';
+            return 'NerdQAxe';
         }
 
         // Bitaxe Gamma detection
@@ -429,7 +436,7 @@ class AutoTuneEngine {
             const temp = parseFloat(data.temp);
             const sharesAccepted = parseInt(data.sharesAccepted) || 0;
             const sharesRejected = parseInt(data.sharesRejected) || 0;
-            const hashrate = parseFloat(data.hashRate) || 0;
+            const hashrate = parseFloat(data.hashRate || data.hashrate) || 0;
             const expectedHashrate = parseFloat(data.expectedHashrate) || 0;
             const power = parseFloat(data.power) || 0;
 
@@ -559,22 +566,34 @@ class AutoTuneEngine {
             }
 
             // Fault detection
+            // Standard Bitaxe (AxeOS) uses 'power_fault'
             const hasApiFault = data.power_fault && data.power_fault.includes("Fault");
+
+            // NerdQAxe (NerdMiner/ESP-Miner) compatibility
+            // It does not send 'power_fault'. We must infer fault from reset reason or zero hashrate/power state.
+            let isNerdQAxeFault = false;
+            if (state.deviceType === 'NerdQAxe') {
+                const resetReason = (data.lastResetReason || '').toLowerCase();
+                // Common fault-related reset reasons in ESP-Miner
+                if (resetReason.includes('panic') || resetReason.includes('wdt') || resetReason.includes('brownout')) {
+                    isNerdQAxeFault = true;
+                }
+                // Also check for zero hashrate + high error count if not just starting up
+                if (data.uptimeSeconds > 60 && hashrate === 0 && currentHWErrorCount > 100) {
+                    isNerdQAxeFault = true;
+                }
+            }
+
             const isUnderperforming = expectedHashrate > 100 && hashrate < (expectedHashrate * 0.05);
             const isFallbackFault = isUnderperforming && power < 10.0 && state.currentFreq > config.minFreq;
             const isVrTooHot = vrTemp >= config.maxVrTemp;
 
-            // Dynamic Input Voltage Limits
-            const inputLimits = INPUT_VOLTAGE_LIMITS[state.deviceType] || INPUT_VOLTAGE_LIMITS['5V'];
-            // If inputVolts is reported in Volts (e.g. 12.0), convert to mV for comparison if limits are in mV
-            // However, the API seems to return mV for voltage (5046.875), but earlier I saw code dividing by 1000.
-            // Let's use the raw value matching the config scale (assuming mV).
-            // InputVolts read from data.voltage (5046) -> that is mV.
+            // ... (rest of logic) ...
 
             const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < inputLimits.min || inputVolts > inputLimits.max);
             const isPowerTooHigh = power > config.maxWatts;
 
-            const isCriticalFault = hasApiFault || isFallbackFault || isInputVoltsOutOfRange;
+            const isCriticalFault = hasApiFault || isNerdQAxeFault || isFallbackFault || isInputVoltsOutOfRange;
             const isSoftFault = isVrTooHot || isPowerTooHigh;
 
             // Temperature glitch detection
@@ -1026,16 +1045,20 @@ class AutoTuneEngine {
         const state = this.autoTuneStates.get(ip);
 
         // Strategy: Default to 2 decimals (float) as requested for official OS.
-        // integer round IF we detect "NerdQAxe" or if the user configures it.
-        // Since we don't have a config flag for this yet, and I can't see the exact model string,
-        // likely the best approach is to check if `state.asicModel` contains "Gamma" or "Nerd".
+        // integer round IF we detect "NerdQAxe" (via 12V type or explicit check).
+
+        const deviceType = state?.deviceType || '5V';
         const boardVersion = (state && state.boardVersion) ? state.boardVersion.toLowerCase() : '';
-        // NerdQAxe users: board version "Rev 6.x" or "Rev 5.x", or "Nerd" in name
-        // Gamma users: board version "601", or "Gamma" in name
+        const deviceModel = (state && state.deviceModel) ? state.deviceModel.toLowerCase() : '';
+
+        // NerdQAxe users: 
+        // 1. Detected as 'NerdQAxe' type (explicit model or board rev)
+        // 2. Explicitly named "NerdQAxe" in device model (fallback)
         const isNerdQAxe = (
+            deviceType === 'NerdQAxe' ||
+            deviceModel.includes('nerdqaxe') ||
             boardVersion.includes('rev 6') ||
-            boardVersion.includes('rev 5') ||
-            (state && state.miner && state.miner.toLowerCase().includes('nerd'))
+            boardVersion.includes('rev 5')
         );
 
         if (isNerdQAxe) {
