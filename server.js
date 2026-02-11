@@ -338,6 +338,9 @@ app.get('/api/autotune/adaptive-limits/summary', (req, res) => {
     //if (!resp.ok) return;
     //const data = resp.json();
     if (limits) {
+      if (!limits.adaptiveLimits || !limits.configLimits) {
+        return;
+      }
       const isLimited = limits.adaptiveLimits.maxVoltage < limits.configLimits.maxVoltage ||
         limits.adaptiveLimits.maxFreq < limits.configLimits.maxFreq;
 
@@ -438,18 +441,24 @@ app.get('/api/autotune/:ip/export-grid', (req, res) => {
     return res.status(404).send('No grid history found for this miner.');
   }
 
-  const log = state.gridHistory;
+  const log = Object.values(state.gridHistory);
 
   // CSV Header
   let csv = 'Timestamp,Voltage(mV),Frequency(MHz),Hashrate(GH/s),Power(W),Efficiency(J/TH),Temp(C),ErrorRate(%)\n';
 
   // CSV Rows
   log.forEach(row => {
-    const time = new Date(row.timestamp).toISOString();
-    const eff = (row.power && row.hashrate) ? (row.power / (row.hashrate / 1000)).toFixed(2) : '';
-    const err = (row.errorRate * 100).toFixed(2);
+    const time = new Date(row.l).toISOString(); // Last seen
+    const avgHash = row.cnt > 0 ? (row.th / row.cnt).toFixed(2) : 0;
+    const avgEff = row.cnt > 0 ? (row.te / row.cnt).toFixed(2) : 0; // Avg Efficiency
+    const avgTemp = row.cnt > 0 ? (row.tt / row.cnt).toFixed(1) : 0;
 
-    csv += `${time},${row.voltage},${row.freq},${row.hashrate},${row.power || ''},${eff},${row.temp || ''},${err}\n`;
+    // Grid history doesn't store error rate directly per cell in this version, 
+    // but tuningLog does. We'll skip error rate or use 0 for now in grid export 
+    // or we could add it to grid history aggregation later.
+    const err = 'N/A';
+
+    csv += `${time},${row.v},${row.f},${avgHash},0,${avgEff},${avgTemp},${err}\n`;
   });
 
   res.header('Content-Type', 'text/csv');

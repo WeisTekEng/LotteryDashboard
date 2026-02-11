@@ -1,0 +1,788 @@
+openapi: 3.0.0
+info:
+  title: NerdQAxe OS API
+  version: 1.0.0
+  description: API for NerdQAxe OS miner firmware.
+
+paths:
+  /recovery:
+    get:
+      summary: Get recovery page
+      description: Returns the recovery HTML page.
+      responses:
+        '200':
+          description: Recovery page HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+
+  /api/system/info:
+    get:
+      summary: Get system information
+      description: Returns system status, configuration, and statistics.
+      parameters:
+        - name: ts
+          in: query
+          description: Start timestamp for history data (milliseconds). If provided, history is included.
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          description: Limit for history data points (max 1000).
+          schema:
+            type: integer
+        - name: experimental
+          in: query
+          description: Enable experimental history span (1 to enable).
+          schema:
+            type: integer
+        - name: history_span
+          in: query
+          description: History span in milliseconds (max 3 hours).
+          schema:
+            type: integer
+            format: int64
+        - name: cur
+          in: query
+          description: Current timestamp (debug purposes).
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: System information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+        '401':
+          description: Unauthorized
+
+  /api/system/asic:
+    get:
+      summary: Get ASIC information
+      description: Returns ASIC model, capabilities, and configuration options.
+      responses:
+        '200':
+          description: ASIC information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsicInfo'
+        '401':
+          description: Unauthorized
+
+  /api/system:
+    patch:
+      summary: Update system settings
+      description: Update various system configuration settings. Requires OTP if enabled.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingsUpdate'
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+  /api/system/restart:
+    post:
+      summary: Restart the system
+      description: Initiates a system restart.
+      responses:
+        '200':
+          description: Restart initiated
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "System will restart shortly."
+        '401':
+          description: Unauthorized
+
+  /api/system/shutdown:
+    post:
+      summary: Shutdown the system
+      description: Initiates a system shutdown.
+      responses:
+        '200':
+          description: Shutdown initiated
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "System will shutdown shortly."
+        '401':
+          description: Unauthorized
+
+  /api/influx/info:
+    get:
+      summary: Get InfluxDB configuration
+      description: Returns current InfluxDB settings.
+      responses:
+        '200':
+          description: InfluxDB configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfluxInfo'
+        '401':
+          description: Unauthorized
+
+  /api/influx:
+    patch:
+      summary: Update InfluxDB configuration
+      description: Updates InfluxDB settings. Requires OTP if enabled.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InfluxUpdate'
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          description: Unauthorized
+
+  /api/swarm/info:
+    get:
+      summary: Get Swarm configuration
+      description: Returns the raw Swarm configuration string.
+      responses:
+        '200':
+          description: Swarm configuration
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+
+  /api/swarm:
+    patch:
+      summary: Update Swarm configuration
+      description: Updates the Swarm configuration with a raw string.
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Configuration updated successfully
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+  /api/otp:
+    post:
+      summary: Create OTP enrollment
+      description: Starts OTP enrollment process (Generates QR code on display).
+      responses:
+        '200':
+          description: Enrollment started
+        '405':
+          description: OTP is already enabled
+        '500':
+          description: Internal Server Error
+    patch:
+      summary: Update OTP settings
+      description: Enable or disable OTP. Requires valid TOTP code in X-TOTP header.
+      parameters:
+        - in: header
+          name: X-TOTP
+          schema:
+            type: string
+          required: true
+          description: Current TOTP code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+              required:
+                - enabled
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          description: Unauthorized (Invalid TOTP)
+        '500':
+          description: Internal Server Error
+
+  /api/otp/session:
+    post:
+      summary: Create OTP session
+      description: Creates a session token valid for 24 hours. Requires valid TOTP code.
+      parameters:
+        - in: header
+          name: X-TOTP
+          schema:
+            type: string
+          required: true
+          description: Current TOTP code
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  ttlMs:
+                    type: integer
+                  expiresAt:
+                    type: number
+        '401':
+          description: Unauthorized (Invalid TOTP)
+        '405':
+          description: OTP disabled
+        '400':
+          description: Missing X-TOTP header
+
+  /api/otp/status:
+    get:
+      summary: Get OTP status
+      description: Check if OTP is enabled.
+      responses:
+        '200':
+          description: OTP status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+        '401':
+          description: Unauthorized
+
+  /api/alert/info:
+    get:
+      summary: Get alert configuration
+      description: Returns Discord alert settings.
+      responses:
+        '200':
+          description: Alert configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertInfo'
+        '401':
+          description: Unauthorized
+
+  /api/alert/update:
+    post:
+      summary: Update alert configuration
+      description: Updates Discord alert settings. Requires OTP if enabled.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertUpdate'
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          description: Unauthorized
+
+  /api/alert/test:
+    post:
+      summary: Test alert
+      description: Sends a test message to the configured Discord webhook.
+      responses:
+        '200':
+          description: Test message sent
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok"
+        '500':
+          description: Send failed
+
+  /api/system/OTA:
+    post:
+      summary: Upload firmware OTA
+      description: Uploads a binary firmware file for Over-The-Air update.
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Update successful
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Update failed
+
+  /api/system/OTAWWW:
+    post:
+      summary: Upload WWW partition OTA
+      description: Uploads a binary file for the WWW partition.
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Update successful
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Update failed
+
+  /api/system/OTA/github:
+    post:
+      summary: Trigger OTA from GitHub
+      description: Triggers an OTA update from a provided GitHub URL.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+              required:
+                - url
+      responses:
+        '202':
+          description: Update started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "started"
+        '409':
+          description: Update already in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "busy"
+        '400':
+          description: Bad Request (Invalid URL or JSON)
+        '401':
+          description: Unauthorized
+    get:
+      summary: Get OTA status
+      description: Returns the status of the current OTA operation.
+      responses:
+        '200':
+          description: OTA status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending:
+                    type: boolean
+                  running:
+                    type: boolean
+                  step:
+                    type: string
+                    enum: [idle, resolving_url, updating_fw, downloading_www, updating_www, rebooting, error, unknown]
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+
+  /api/ws:
+    get:
+      summary: WebSocket endpoint
+      description: WebSocket endpoint for real-time updates.
+      responses:
+        '101':
+          description: Switching Protocols
+
+components:
+  schemas:
+    SystemInfo:
+      type: object
+      properties:
+        asicCount:
+          type: integer
+        smallCoreCount:
+          type: integer
+        deviceModel:
+          type: string
+        hostip:
+          type: string
+        macAddr:
+          type: string
+        wifiRSSI:
+          type: integer
+        power:
+          type: number
+        maxPower:
+          type: integer
+        minPower:
+          type: integer
+        maxVoltage:
+          type: integer
+        minVoltage:
+          type: integer
+        current:
+          type: number
+        currentA:
+          type: number
+        minCurrentA:
+          type: number
+        maxCurrentA:
+          type: number
+        temp:
+          type: number
+        vrTemp:
+          type: number
+        vrTempInt:
+          type: integer
+        hashRateTimestamp:
+          type: integer
+          format: int64
+        hashRate:
+          type: number
+        hashRate_1m:
+          type: number
+        hashRate_10m:
+          type: number
+        hashRate_1h:
+          type: number
+        hashRate_1d:
+          type: number
+        coreVoltage:
+          type: integer
+        defaultCoreVoltage:
+          type: integer
+        coreVoltageActual:
+          type: integer
+        fanspeed:
+          type: integer
+        manualFanSpeed:
+          type: integer
+        fanrpm:
+          type: integer
+        fanrpm2:
+          type: integer
+        fanCount:
+          type: integer
+        lastpingrtt:
+          type: integer
+        recentpingloss:
+          type: integer
+        shutdown:
+          type: boolean
+        duplicateHWNonces:
+          type: integer
+          format: int64
+        stratum:
+          type: object
+          properties:
+            poolDifficulty:
+              type: number
+            foundBlocks:
+              type: integer
+            totalFoundBlocks:
+              type: integer
+            sharesAccepted:
+              type: integer
+            sharesRejected:
+              type: integer
+            bestDiff:
+              type: string
+            bestSessionDiff:
+              type: string
+            poolMode:
+              type: integer
+            activePoolMode:
+              type: integer
+            poolBalance:
+              type: integer
+            totalBestDiff:
+              type: integer
+              format: int64
+        asicTemps:
+          type: array
+          items:
+            type: integer
+        pidTargetTemp:
+          type: integer
+        pidP:
+          type: number
+        pidI:
+          type: number
+        pidD:
+          type: number
+        hostname:
+          type: string
+        ssid:
+          type: string
+        stratumURL:
+          type: string
+        stratumPort:
+          type: integer
+        stratumUser:
+          type: string
+        stratumEnonceSubscribe:
+          type: boolean
+        stratumTLS:
+          type: boolean
+        fallbackStratumURL:
+          type: string
+        fallbackStratumPort:
+          type: integer
+        fallbackStratumUser:
+          type: string
+        fallbackStratumEnonceSubscribe:
+          type: boolean
+        fallbackStratumTLS:
+          type: boolean
+        voltage:
+          type: number
+        frequency:
+          type: integer
+        defaultFrequency:
+          type: integer
+        jobInterval:
+          type: integer
+        stratumDifficulty:
+          type: integer
+        overheat_temp:
+          type: integer
+        flipscreen:
+          type: integer
+        invertscreen:
+          type: integer
+        autoscreenoff:
+          type: integer
+        invertfanpolarity:
+          type: integer
+        autofanspeed:
+          type: integer
+        stratum_keep:
+          type: integer
+        vrFrequency:
+          type: integer
+        defaultVrFrequency:
+          type: integer
+        otp:
+          type: boolean
+        ASICModel:
+          type: string
+        uptimeSeconds:
+          type: integer
+          format: int64
+        lastResetReason:
+          type: string
+        wifiStatus:
+          type: string
+        freeHeap:
+          type: integer
+        freeHeapInt:
+          type: integer
+        version:
+          type: string
+        runningPartition:
+          type: string
+        defaultTheme:
+          type: string
+        history:
+          type: object
+          description: Included if history requested via query params.
+
+    AsicInfo:
+      type: object
+      properties:
+        ASICModel:
+          type: string
+        deviceModel:
+          type: string
+        asicCount:
+          type: integer
+        defaultFrequency:
+          type: integer
+        defaultVoltage:
+          type: integer
+        absMaxFrequency:
+          type: integer
+        absMaxVoltage:
+          type: integer
+        ecoFrequency:
+          type: integer
+        ecoVoltage:
+          type: integer
+        swarmColor:
+          type: string
+        frequencyOptions:
+          type: array
+          items:
+            type: integer
+        voltageOptions:
+          type: array
+          items:
+            type: integer
+
+    SystemSettingsUpdate:
+      type: object
+      properties:
+        ssid:
+          type: string
+        wifiPass:
+          type: string
+        hostname:
+          type: string
+        coreVoltage:
+          type: integer
+        frequency:
+          type: integer
+        jobInterval:
+          type: integer
+        stratumDifficulty:
+          type: integer
+        flipscreen:
+          type: boolean
+        overheat_temp:
+          type: integer
+        invertscreen:
+          type: boolean
+        invertfanpolarity:
+          type: boolean
+        autofanspeed:
+          type: integer
+        manualFanSpeed:
+          type: integer
+        autoscreenoff:
+          type: boolean
+        stratum_keep:
+          type: integer
+          description: 0 or 1, or boolean
+        pidTargetTemp:
+          type: integer
+        pidP:
+          type: number
+        pidI:
+          type: number
+        pidD:
+          type: number
+        vrFrequency:
+          type: integer
+        poolMode:
+          type: integer
+        stratumURL:
+          type: string
+        stratumUser:
+          type: string
+        stratumPassword:
+          type: string
+        stratumPort:
+          type: integer
+        stratumEnonceSubscribe:
+          type: boolean
+        stratumTLS:
+          type: boolean
+        fallbackStratumURL:
+          type: string
+        fallbackStratumUser:
+          type: string
+        fallbackStratumPassword:
+          type: string
+        fallbackStratumPort:
+          type: integer
+        fallbackStratumEnonceSubscribe:
+          type: boolean
+        fallbackStratumTLS:
+          type: boolean
+
+    InfluxInfo:
+      type: object
+      properties:
+        influxURL:
+          type: string
+        influxPort:
+          type: integer
+        influxBucket:
+          type: string
+        influxOrg:
+          type: string
+        influxPrefix:
+          type: string
+        influxEnable:
+          type: integer
+
+    InfluxUpdate:
+      type: object
+      properties:
+        influxEnable:
+          type: boolean
+        influxURL:
+          type: string
+        influxPort:
+          type: integer
+        influxToken:
+          type: string
+        influxBucket:
+          type: string
+        influxOrg:
+          type: string
+        influxPrefix:
+          type: string
+
+    AlertInfo:
+      type: object
+      properties:
+        alertDiscordWatchdogEnable:
+          type: integer
+        alertDiscordBlockFoundEnable:
+          type: integer
+        alertDiscordBestDiffEnable:
+          type: integer
+        showBlockFoundScreenEnable:
+          type: integer
+
+    AlertUpdate:
+      type: object
+      properties:
+        alertDiscordWebhook:
+          type: string
+        alertDiscordWatchdogEnable:
+          type: boolean
+        alertDiscordBlockFoundEnable:
+          type: boolean
+        alertDiscordBestDiffEnable:
+          type: boolean
+        showBlockFoundScreenEnable:
+          type: boolean
