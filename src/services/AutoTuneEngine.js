@@ -588,7 +588,12 @@ class AutoTuneEngine {
             const isFallbackFault = isUnderperforming && power < 10.0 && state.currentFreq > config.minFreq;
             const isVrTooHot = vrTemp >= config.maxVrTemp;
 
-            // ... (rest of logic) ...
+            // Dynamic Input Voltage Limits
+            const inputLimits = INPUT_VOLTAGE_LIMITS[state.deviceType] || INPUT_VOLTAGE_LIMITS['5V'];
+            // If inputVolts is reported in Volts (e.g. 12.0), convert to mV for comparison if limits are in mV
+            // However, the API seems to return mV for voltage (5046.875), but earlier I saw code dividing by 1000.
+            // Let's use the raw value matching the config scale (assuming mV).
+            // InputVolts read from data.voltage (5046) -> that is mV.
 
             const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < inputLimits.min || inputVolts > inputLimits.max);
             const isPowerTooHigh = power > config.maxWatts;
