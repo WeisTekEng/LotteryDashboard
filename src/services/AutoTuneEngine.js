@@ -71,8 +71,58 @@ class AutoTuneEngine {
             const expectedHashrate = parseFloat(data.expectedHashrate) || 0;
             const power = parseFloat(data.power) || 0;
 
-            const currentHWErrorCount = data.hashrateMonitor?.asics?.[0]?.errorCount || 0;
-            const hwErrorDelta = currentHWErrorCount - (state.lastErrorCount || 0);
+            let currentHWErrorCount = state.deviceType === 'NerdQAxe' ? 0 : data.hashrateMonitor?.asics?.[0]?.errorCount || 0;
+
+            // --- NerdQAxe Specific: Effective Error Rate ---
+            // NerdQAxe doesn't report HW errors. We calculate "effective" error rate based on missing hashrate.
+            // Rule: 2.01 GH/MHz per chip (BM1370)
+            if (state.deviceType === 'NerdQAxe') {
+                const chipCount = data.asicCount || 1;
+                const expectedHash = (state.currentFreq * chipCount * 2.01);
+                if (expectedHash > 0) {
+                    const effectiveErrorRate = 1.0 - (hashrate / expectedHash);
+                    // If effective error rate is significant (> 1%), use it as the error metric
+                    // We only use this if it's POSITIVE (hashrate < expected). 
+                    // If hashrate > expected (lucky), error rate is 0.
+                    if (effectiveErrorRate > 0.01) {
+                        // We interpret this as "percentage of work not resulting in hashrate", akin to HW errors.
+                        // We map this 0-1 range to an error count equivalent for logging, or just use the rate directly.
+                        // The logic below uses `smoothErrorRate`.
+                        // We can override the *reported* error rate usage in the smoothing function or just override the result.
+                    }
+                }
+            }
+
+            // Calculate HW Error Rate (Delta)
+            let hwErrorDelta = 0;
+            if (currentHWErrorCount < state.lastErrorCount) {
+                state.lastErrorCount = currentHWErrorCount; // Reset if miner restarted
+            } else {
+                hwErrorDelta = currentHWErrorCount - (state.lastErrorCount || 0);
+            }
+
+            // Calculate Error Rate (HW Errors / Expected Shares or just Time)
+            // For Gamma, we use errorPercentage from API if available, else calc
+            let currentErrorRate = data.errorPercentage !== undefined ? data.errorPercentage / 100 : 0;
+
+            // Override with NerdQAxe calculated rate if applicable
+            if (state.deviceType === 'NerdQAxe') {
+                const chipCount = data.asicCount || 1;
+                const expectedHash = (state.currentFreq * chipCount * 2.01);
+                if (expectedHash > 0) {
+                    const effectiveErrorRate = Math.max(0, 1.0 - (hashrate / expectedHash));
+                    // use effective rate if significant, essentially treating missing hashrate as errors
+                    currentErrorRate = effectiveErrorRate;
+                }
+            }
+
+            // Smooth the error rate
+            const smoothFactors = { aggressive: 0.1, cost_sensitive: 0.05, conservative: 0.02 };
+            const alpha = smoothFactors[state.mode] || 0.05;
+            // Initialize if needed
+            if (state.errorRate === undefined) state.errorRate = currentErrorRate;
+            state.errorRate = (alpha * currentErrorRate) + ((1 - alpha) * state.errorRate);
+            const smoothErrorRate = state.errorRate;
             const vrTemp = parseFloat(data.vrTemp) || 0;
             const inputVolts = parseFloat(data.voltage) || 0;
             const hashPerformance = expectedHashrate > 0 ? (hashrate / expectedHashrate) : 1;
@@ -81,27 +131,18 @@ class AutoTuneEngine {
             const isCostSensitive = state.mode === 'cost_sensitive';
             const currentDailyCost = this.calculateDailyCost(power, state.kwhPrice);
 
-            // Calculate error rate
-            let liveErrorRate = 0;
-            if (data.errorPercentage !== undefined) {
-                liveErrorRate = parseFloat(data.errorPercentage) / 100;
-            } else {
-                const deltaValid = sharesAccepted - (state.lastShares?.valid || 0);
-                const deltaInvalid = sharesRejected - (state.lastShares?.invalid || 0);
-                const totalDelta = deltaValid + deltaInvalid;
-                liveErrorRate = totalDelta > 0 ? deltaInvalid / totalDelta : 0;
-            }
-
-            // Moving averages
+            // Moving averages - Temp
             state.tempHistory = state.tempHistory || [];
             state.tempHistory.push(temp);
             if (state.tempHistory.length > 5) state.tempHistory.shift();
             const avgTemp = state.tempHistory.reduce((a, b) => a + b, 0) / state.tempHistory.length;
 
+            // Error Rate smoothing (Exponential Moving Average is already used in state.errorRate above)
+            // We update errorHistory for display/charting purposes if needed, but use state.errorRate for control.
             state.errorHistory = state.errorHistory || [];
-            state.errorHistory.push(liveErrorRate);
+            state.errorHistory.push(currentErrorRate);
             if (state.errorHistory.length > 5) state.errorHistory.shift();
-            const smoothErrorRate = state.errorHistory.reduce((a, b) => a + b, 0) / state.errorHistory.length;
+            // const smoothErrorRate = ... (Already defined above as alpha-smoothed value)
 
             // Sync with actual miner state
             // If the reported voltage is close to our last set voltage (within rounding error), 

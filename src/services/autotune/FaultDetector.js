@@ -53,12 +53,36 @@ class FaultDetector {
         const isUnderperforming = expectedHashrate > 100 && hashrate < (expectedHashrate * 0.05);
         const isFallbackFault = isUnderperforming && power < 10.0 && state.currentFreq > config.minFreq;
 
-        // D. Soft Faults
-        const isVrTooHot = vrTemp >= config.maxVrTemp;
-        const isPowerTooHigh = power > config.maxWatts;
+        // D. Low Hashrate / Zero Power Detection (NerdQAxe Specific)
+        let isPowerFault = false;
+
+        // Calculate Expected Hashrate if not provided
+        let expectedHash = expectedHashrate;
+        if (!expectedHash && state.deviceType === 'NerdQAxe') {
+            // BM1370 approx 2.01 GH/MHz per chip.
+            const chipCount = data.asicCount || 1;
+            const freq = data.frequency || state.currentFreq || 0;
+            if (freq > 0) {
+                expectedHash = freq * chipCount * 2.01;
+            }
+        }
+
+        if (state.deviceType === 'NerdQAxe') {
+            // 1. Zero Power Fault: Input is good (>10V), but Power is near 0 (<5W)
+            if (inputVolts > 10000 && power < 5.0) {
+                isPowerFault = true;
+                reasons.push(`NERDQAXE_ZERO_POWER(${power}W, In:${inputVolts}mV)`);
+            }
+
+            // 2. Low Hashrate Fault: < 10% of expected
+            if (expectedHash > 0 && hashrate < (expectedHash * 0.10)) {
+                isPowerFault = true; // Utilizing generic power fault flag or creating new
+                reasons.push(`NERDQAXE_LOW_HASH(${hashrate.toFixed(1)}/${expectedHash.toFixed(1)}GH)`);
+            }
+        }
 
         // --- 4. Aggregate Faults ---
-        const isCriticalFault = hasApiFault || isNerdQAxeFault || isFallbackFault || isInputVoltsOutOfRange;
+        const isCriticalFault = hasApiFault || isNerdQAxeFault || isFallbackFault || isInputVoltsOutOfRange || isPowerFault;
         const isSoftFault = isVrTooHot || isPowerTooHigh;
 
         // Collect Reasons
