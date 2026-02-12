@@ -458,8 +458,8 @@ class AutoTuneEngine {
             }
             // === PRIORITY 6: STABILITY ISSUES ===
             else if (smoothErrorRate > config.maxErrorRate ||
-                hwErrorDelta > (state.mode === 'aggressive' ? 50 : 5) ||
-                hashPerformance < 0.94) {
+                hwErrorDelta > (state.mode === 'aggressive' ? 100 : 20) ||
+                hashPerformance < 0.90) {
 
                 const isHighError = smoothErrorRate > config.maxErrorRate;
                 const isLowHash = hashPerformance < 0.90; // Relaxed from 0.94 to avoids false positives with noise
@@ -469,7 +469,7 @@ class AutoTuneEngine {
                 if (failedOptimization) {
                     newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                     action = 'instability_revert_optimization';
-                } else if (isHighError || hwErrorDelta > 20) {
+                } else if (isHighError || hwErrorDelta > 100) {
                     if (state.currentFreq > config.minFreq + (config.freqStep * 5)) {
                         newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep);
                         action = 'instability_throttle_freq';
