@@ -174,20 +174,41 @@ This app is ready for Umbrel, Although not available yet on the umbrel app store
 **Using portainer**
 
 1.  Install Portainer from the Umbrel app store
-2.  Once in Portainer, navigate to the environment usualy named **primary** you want to run this container in, 
-3.  click on **connect** 
-4.  then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
-5.  For docker.io images, you can pull my latest image from dockerhub `ocybress/aateminerdashboard:latest` or visit the repo on dockerhub at https://hub.docker.com/r/ocybress/aateminerdashboard to see the tags and pull the feature banches or dev branch.
-6.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
-7.  Click "deploy the container"
-8.  Wait for the container to start
-9.  Navigate to `http://localhost:3000` to access the dashboard
-10. Once the page has loaded, go to the dashboard settings page, under Dashboard Network set SCAN_SUBNET to the subnet of your local network, this will allow the dashboard to scan for miners on your network.
+2.  Once in Portainer, navigate to the environment-related tab click on **Environments**
+3.  Then in the upper right hand corner click the **+ Add environment ** button.
+4.  Select the ** Docker Standalone** option.
+5.  Click start wizard.
+6.  Make sure ** Agent ** is selected.
+7.  Make sure Linux & Windows WSL is selected.
+8.  Click the ** Copy Command ** button.
+9.  SSH into your umbrel device usualy ** umbrel@umbrel.local ** enter the password.
+10. run the copied command using sudo.
+11. It should say the image is not available locally and start downloading the proper image.
+12. Wait for the image to download.
+13. Once the image is downloaded, go back to portainer and Enter a portainer_agent in the name field.
+14. Enter the umbrel device IP and port '9001' in the host field example: `192.168.0.152:9001`.
+15. click on **connect** it should show the new envnironment in the New Environments list on the right.
+16. It should already be connected but if not click the ** home ** buttom on the left hand side and click the Portainer_Agent
+    environment.
+17. Click on **volums** and click on **+ Add volume**.
+18. Name the volume and click **create the volume**. 
+19. then on the left side panel you will see Containers, go to this tab and click on "Add Container" on the far right.
+20.  For docker.io images, you can pull my latest image from dockerhub `ocybress/aateminerdashboard:latest` or visit the repo on dockerhub at https://hub.docker.com/r/ocybress/aateminerdashboard to see the tags and pull the feature banches or dev branch.
+21.  For the ports, add `3000:3000` TCP, and `33333:33333` UDP
+22.  For the persistance, add the volume you created in step 18.
+      - click the Volumes button at the bottom of the container page.
+      - click the **+ map additional volume** button.
+      - in the container field enter `/app/data`.
+      - in the volume field select the volume you created in step 18.
+23.  For the environment variables, add the following:
+    - `SCAN_SUBNET` set to the subnet of your local network, this will allow the dashboard to scan for miners on your network. or this can be set in the dashboard settings.
+22.  Click **deploy the container**
+23.  Wait for the container to start
+24.  Navigate to `http://localhost:3000` to access the dashboard
+25.  Once the page has loaded, go to the dashboard settings page, under Dashboard Network set SCAN_SUBNET to the subnet of your local network, this will allow the dashboard to scan for miners on your network.
+26.  To access the volume contents, while in portainer, click on the volumes tab and select the **browse** button next to the volume you created in step 18.
 
 ![Portainer](Images/PortainerAddContainer.PNG)
-
-### Persistent Configuration (Editing Settings)
-I have not been successful in getting persistance to work with Portainer in umbrel.
 
 ### Exposing the dashboard via Tailscale
 You can expose the dashboard via [Tailscale](https://tailscale.com/) if you want to access it from other devices or from outside your home network, the UI is built to work with both desktop and mobile devices. you can find the quickstart guide for setting up tailscale [here](https://tailscale.com/quickstart/).
