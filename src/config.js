@@ -40,7 +40,8 @@ const DEFAULT_CONFIG = {
             maxVrTemp: 85,
             minInputVolts: 4800,
             maxInputVolts: 5600,
-            maxWatts: 40
+            maxWatts: 40,
+            stableCyclesRequired: 5
         },
         cost_sensitive: {
             minVoltage: 1150,
@@ -60,7 +61,8 @@ const DEFAULT_CONFIG = {
             maxVrTemp: 95,
             minInputVolts: 4800,
             maxInputVolts: 5600,
-            maxWatts: 50
+            maxWatts: 50,
+            stableCyclesRequired: 3
         },
         aggressive: {
             minVoltage: 1150,
@@ -80,7 +82,8 @@ const DEFAULT_CONFIG = {
             maxVrTemp: 105,
             minInputVolts: 4800,
             maxInputVolts: 5600,
-            maxWatts: 50
+            maxWatts: 50,
+            stableCyclesRequired: 3
         }
     }
 };

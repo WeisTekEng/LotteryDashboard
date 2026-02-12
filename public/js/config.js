@@ -43,6 +43,7 @@ function getUnitLabel(key) {
     if (k.includes('interval') || k.includes('timeout') || k.includes('adjust')) return ' (ms)';
     if (k.includes('temp')) return ' (°C)';
     if (k.includes('watts')) return ' (W)';
+    if (k.includes('cycles')) return ' (cycles)';
     if (k.includes('rate')) return ' (ratio 0-1)';
     if (k.includes('efficiency')) return ' (J/TH)';
     return '';

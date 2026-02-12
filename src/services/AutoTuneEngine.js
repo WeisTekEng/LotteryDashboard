@@ -450,7 +450,7 @@ class AutoTuneEngine {
                 // To keep this message short, I assume the rest of the optimization logic remains effectively same structure.
 
                 // Re-implementing simplified optimization logic for brevity and correctness
-                if (state.stableCycleCount > config.stableCyclesRequired && !isStabilizing) {
+                if (state.stableCycleCount > (config.stableCyclesRequired || 3) && !isStabilizing) {
                     // Check PLL recommended voltage
                     const recommendedV = this.getRecommendedVoltage(state.currentFreq + config.freqStep, state.asicModel, state.deviceType);
 
