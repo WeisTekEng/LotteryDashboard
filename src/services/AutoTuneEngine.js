@@ -121,15 +121,50 @@ class AutoTuneEngine {
             }
 
             // Smooth the error rate
-            const smoothFactors = { aggressive: 0.1, cost_sensitive: 0.05, conservative: 0.02 };
-            const alpha = smoothFactors[state.mode] || 0.05;
-            // Initialize if needed
-            if (state.errorRate === undefined) state.errorRate = currentErrorRate;
-            state.errorRate = (alpha * currentErrorRate) + ((1 - alpha) * state.errorRate);
-            const smoothErrorRate = state.errorRate;
             const vrTemp = parseFloat(data.vrTemp) || 0;
             const inputVolts = parseFloat(data.voltage) || 0;
-            const hashPerformance = expectedHashrate > 0 ? (hashrate / expectedHashrate) : 1;
+
+            // Updated Hashrate Performance Logic:
+            // Use Hashrate/Frequency ratio (Expected Efficiency) to handle frequency scaling correctly.
+            // This prevents false "Low Hashrate" faults when running at low frequencies where API expectedHashrate might be static/high.
+
+            const currentHashPerMHz = state.currentFreq > 0 ? (hashrate / state.currentFreq) : 0;
+
+            // Maintain a smoothed Baseline Hash/MHz
+            state.baselineHashPerMHz = state.baselineHashPerMHz || currentHashPerMHz;
+
+            // Only update baseline if performance is "good" relative to itself (e.g. not crashing)
+            // Or slowly adapt (alpha = 0.05) to drift
+            if (currentHashPerMHz > 0.1) { // Basic sanity check
+                state.baselineHashPerMHz = (0.05 * currentHashPerMHz) + (0.95 * state.baselineHashPerMHz);
+            }
+
+            // Calculate Performance % based on dynamic baseline OR static expected if baseline is cold
+            // If API expectedHashrate is wildly different (>2x) from current, trust our baseline
+
+            let hashPerformance = 1.0;
+
+            if (expectedHashrate > 0) {
+                // Check if API expected is consistent with current freq (e.g. within 50%)
+                // If API says 2000GH but at 700MHz we only get 1200GH, ratio is 0.6.
+                // We want to detect if CHIPS are failing, not if FREQ is low.
+                // So we compare current Hash/MHz to Baseline Hash/MHz.
+
+                if (state.baselineHashPerMHz > 0.1) {
+                    hashPerformance = currentHashPerMHz / state.baselineHashPerMHz;
+                } else {
+                    // Fallback to API expected if we have no history (startup)
+                    // Be lenient at startup
+                    hashPerformance = hashrate / expectedHashrate;
+                }
+            }
+
+            // Override for NerdQAxe (uses calculated expected)
+            if (state.deviceType === 'NerdQAxe') {
+                // Recalculate based on 2.01 coeff
+                const expectedHash = (state.currentFreq * (data.asicCount || 1) * 2.01);
+                if (expectedHash > 0) hashPerformance = hashrate / expectedHash;
+            }
 
             // Cost Calculations
             const isCostSensitive = state.mode === 'cost_sensitive';
@@ -420,7 +455,7 @@ class AutoTuneEngine {
                 hashPerformance < 0.94) {
 
                 const isHighError = smoothErrorRate > config.maxErrorRate;
-                const isLowHash = hashPerformance < 0.94;
+                const isLowHash = hashPerformance < 0.90; // Relaxed from 0.94 to avoids false positives with noise
 
                 const failedOptimization = ['voltage_pullback_optimization', 'tune_for_efficiency'].includes(state.lastAction);
 
