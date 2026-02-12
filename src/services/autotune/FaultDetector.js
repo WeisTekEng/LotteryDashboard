@@ -80,10 +80,11 @@ class FaultDetector {
                 reasons.push(`NERDQAXE_ZERO_POWER(${power}W, In:${inputVolts}mV)`);
             }
 
-            // 2. Low Hashrate Fault: < 10% of expected
-            if (expectedHash > 0 && hashrate < (expectedHash * 0.10)) {
+            // 2. Low Hashrate Fault: < 2% of expected (Catch "Zombie" state, ignore struggling miners)
+            // A struggling miner (e.g. 500GH/s vs 2000GH/s) needs more voltage, not a critical fault.
+            if (expectedHash > 0 && hashrate < (expectedHash * 0.02)) {
                 isPowerFault = true; // Utilizing generic power fault flag or creating new
-                reasons.push(`NERDQAXE_LOW_HASH(${hashrate.toFixed(1)}/${expectedHash.toFixed(1)}GH)`);
+                reasons.push(`NERDQAXE_ZOMBIE_HASH(${hashrate.toFixed(1)}/${expectedHash.toFixed(1)}GH)`);
             }
         }
 
