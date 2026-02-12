@@ -242,13 +242,19 @@ class AutoTuneEngine {
                 hashrate, expectedHashrate, power, vrTemp, inputVolts, temp, currentHWErrorCount
             };
             const faults = FaultDetector.detect(data, state, config, metrics);
-            const { isCriticalFault, isSoftFault, reasons, isTempGlitch, tempDrop, isVrTooHot, isPowerTooHigh } = faults;
+            // Explicitly assign to avoid destructuring/ReferenceError confusion
+            const isCriticalFault = faults.isCriticalFault;
+            const isSoftFault = faults.isSoftFault;
+            const reasons = faults.reasons;
+            const isTempGlitch = faults.isTempGlitch;
+            const tempDrop = faults.tempDrop;
+            const isVrTooHot = faults.isVrTooHot;
+            const isPowerTooHigh = faults.isPowerTooHigh;
 
-            // Temperature glitch handling state update
+            // Debug logging to verify variables are defined
+            // console.log(`[AutoTune Debug] Faults:`, { isCriticalFault, isSoftFault, isVrTooHot });
             if (isTempGlitch) {
-                state.lastSeenTemp = temp; // Reset last seen temp to current low value to avoid repeated glitches? 
-                // Actually logic says: lastTemp = state.lastSeenTemp || temp; state.lastSeenTemp = temp; at end.
-                // FaultDetector just calculates isTempGlitch. We need to update state.lastSeenTemp regardless.
+                state.lastSeenTemp = temp;
             }
             state.lastSeenTemp = temp;
 
@@ -371,6 +377,9 @@ class AutoTuneEngine {
             }
             // === PRIORITY 3.5: SOFT FAULT ===
             else if (isSoftFault && !state.restarting && now > state.stabilizationUntil) {
+                // Confirm variable scope availability
+                console.log(`[AutoTune Debug] Soft Fault Check: isVrTooHot=${isVrTooHot}, isPowerTooHigh=${isPowerTooHigh}`);
+
                 const softReasons = [];
                 if (isVrTooHot) softReasons.push(`VR_HOT(${vrTemp}C)`);
                 if (isPowerTooHigh) softReasons.push(`POWER_LIMIT(${power}W)`);

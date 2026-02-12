@@ -49,11 +49,17 @@ class FaultDetector {
             }
         }
 
-        // C. Fallback Fault Inference (Generic)
+        // C. VR Temperature Check (Soft Fault)
+        const isVrTooHot = vrTemp > 0 && vrTemp >= (config.vrTempLimit || 85);
+
+        // D. Power Limit Check (Soft Fault)
+        const isPowerTooHigh = power > 0 && power >= (config.powerLimit || 999);
+
+        // E. Fallback Fault Inference (Generic)
         const isUnderperforming = expectedHashrate > 100 && hashrate < (expectedHashrate * 0.05);
         const isFallbackFault = isUnderperforming && power < 10.0 && state.currentFreq > config.minFreq;
 
-        // D. Low Hashrate / Zero Power Detection (NerdQAxe Specific)
+        // F. Low Hashrate / Zero Power Detection (NerdQAxe Specific)
         let isPowerFault = false;
 
         // Calculate Expected Hashrate if not provided
