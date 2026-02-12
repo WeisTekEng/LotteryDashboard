@@ -446,16 +446,19 @@ class AutoTuneEngine {
 
             // Debug Logging (Unconditional)
             if (hashrate > 0) {
+                const globalSpeed = (state.currentFreq / config.maxFreq) * 100;
                 console.log(`[AutoTune Debug] ${ip} Loop Variables:
                  Temp: ${avgTemp.toFixed(1)} / ${config.tempTarget}
                  Err: ${(smoothErrorRate * 100).toFixed(4)}% / ${(config.maxErrorRate * 100).toFixed(2)}%
                  HW Delta: ${hwErrorDelta} (Aggressive Threshold: ${state.mode === 'aggressive' ? 100 : 20})
-                 Perf: ${(hashPerformance * 100).toFixed(1)}% / 90.0%
+                 Health: ${(hashPerformance * 100).toFixed(1)}% / 90.0%
+                 Global Speed: ${globalSpeed.toFixed(1)}% (${state.currentFreq}/${config.maxFreq}MHz)
                  Volts: ${inputVolts}mV (Range: ${inputLimits.min}-${inputLimits.max})
                  Power: ${power.toFixed(1)}W / ${config.maxWatts}W`);
             }
+
             // === PRIORITY 4: THERMAL DANGER ===
-            else if (avgTemp >= config.tempDanger) {
+            if (avgTemp >= config.tempDanger) {
                 newFreq = Math.max(config.minFreq, newFreq - config.freqStep * 2);
                 if (newFreq > config.minFreq || state.currentVoltage > config.minVoltage + config.voltageStep) {
                     newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
