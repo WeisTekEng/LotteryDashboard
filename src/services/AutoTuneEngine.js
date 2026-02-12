@@ -438,6 +438,12 @@ class AutoTuneEngine {
                 console.warn(`[AutoTune] ${ip}: SOFT FAULT! Reason: ${softReasons.join(', ')}. Throttling to ${newVoltage}mV/${newFreq}MHz...`);
                 state.stableCycleCount = 0;
             }
+            // Dynamic Input Voltage Limits
+            const inputLimits = INPUT_VOLTAGE_LIMITS[state.deviceType] || INPUT_VOLTAGE_LIMITS['5V'];
+            // If inputVolts is reported in Volts (e.g. 12.0), convert to mV for comparison if limits are in mV
+            // However, the API seems to return mV for voltage (5046.875).
+            const isInputVoltsOutOfRange = inputVolts > 0 && (inputVolts < inputLimits.min || inputVolts > inputLimits.max);
+
             // Debug Logging (Unconditional)
             if (hashrate > 0) {
                 console.log(`[AutoTune Debug] ${ip} Loop Variables:
