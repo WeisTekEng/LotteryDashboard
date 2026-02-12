@@ -678,11 +678,7 @@ class AutoTuneEngine {
                     action = 'optimize_voltage_max_freq';
                     state.stableCycleCount = 0;
                 }
-                else {
-                    action = 'maintain';
-                }
             }
-
 
             // Apply Changes
             if (newVoltage !== state.currentVoltage || newFreq !== state.currentFreq) {
@@ -696,6 +692,11 @@ class AutoTuneEngine {
                 state.currentFreq = newFreq;
             } else {
                 state.lastAction = action; // update action even if values hold
+
+                // Increment stability counter if no changes
+                if (action === 'maintain' || action.includes('optimize_')) {
+                    state.stableCycleCount = (state.stableCycleCount || 0) + 1;
+                }
 
                 // Heartbeat
                 // Calculate current efficiency for logging
