@@ -528,6 +528,11 @@ class AutoTuneEngine {
                 const isVeryStable = (state.stableCycleCount || 0) >= 10 && smoothErrorRate < 0.01;
                 const isStable = (state.stableCycleCount || 0) >= 5 && smoothErrorRate < 0.02;
 
+                // Debug Optimization Logic
+                if (state.stableCycleCount > 5) {
+                    console.log(`[AutoTune Debug] ${ip} Opt Check: Headroom=${hasFreqHeadroom} (Max: ${effectiveMaxFreq}), Stable=${isStable}, Eff=${efficiency ? efficiency.toFixed(1) : 'N/A'} (Target: ${config.targetEfficiency || 'N/A'})`);
+                }
+
                 // Priority 10: Voltage pullback
                 // If we are at max voltage/freq and stable, try to back off voltage to save power/heat
                 if (newVoltage === effectiveMaxVoltage && isVeryStable && !hasFreqHeadroom) {
@@ -536,7 +541,7 @@ class AutoTuneEngine {
                     state.stableCycleCount = 0;
                 }
                 // Priority 8: Efficiency tuning
-                else if (efficiency !== null && efficiency > config.targetEfficiency + 0.5) {
+                else if (efficiency !== null && config.targetEfficiency && efficiency > config.targetEfficiency + 0.5) {
                     newFreq = Math.max(config.minFreq, newFreq - config.freqStep);
                     if (newFreq === config.minFreq) {
                         newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
