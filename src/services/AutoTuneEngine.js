@@ -438,6 +438,16 @@ class AutoTuneEngine {
                 console.warn(`[AutoTune] ${ip}: SOFT FAULT! Reason: ${softReasons.join(', ')}. Throttling to ${newVoltage}mV/${newFreq}MHz...`);
                 state.stableCycleCount = 0;
             }
+            // Debug Logging (Unconditional)
+            if (hashrate > 0) {
+                console.log(`[AutoTune Debug] ${ip} Loop Variables:
+                 Temp: ${avgTemp.toFixed(1)} / ${config.tempTarget}
+                 Err: ${(smoothErrorRate * 100).toFixed(4)}% / ${(config.maxErrorRate * 100).toFixed(2)}%
+                 HW Delta: ${hwErrorDelta} (Aggressive Threshold: ${state.mode === 'aggressive' ? 100 : 20})
+                 Perf: ${(hashPerformance * 100).toFixed(1)}% / 90.0%
+                 Volts: ${inputVolts}mV (Range: ${inputLimits.min}-${inputLimits.max})
+                 Power: ${power.toFixed(1)}W / ${config.maxWatts}W`);
+            }
             // === PRIORITY 4: THERMAL DANGER ===
             else if (avgTemp >= config.tempDanger) {
                 newFreq = Math.max(config.minFreq, newFreq - config.freqStep * 2);
@@ -460,6 +470,8 @@ class AutoTuneEngine {
             else if (smoothErrorRate > config.maxErrorRate ||
                 hwErrorDelta > (state.mode === 'aggressive' ? 100 : 20) ||
                 hashPerformance < 0.90) {
+
+                console.log(`[AutoTune Debug] ${ip} Stability Trigger: Err=${smoothErrorRate.toFixed(6)} > Max=${config.maxErrorRate}, HW=${hwErrorDelta} > ${state.mode === 'aggressive' ? 100 : 20}, Perf=${hashPerformance.toFixed(3)} < 0.90`);
 
                 const isHighError = smoothErrorRate > config.maxErrorRate;
                 const isLowHash = hashPerformance < 0.90; // Relaxed from 0.94 to avoids false positives with noise
