@@ -73,26 +73,6 @@ class AutoTuneEngine {
 
             let currentHWErrorCount = state.deviceType === 'NerdQAxe' ? 0 : data.hashrateMonitor?.asics?.[0]?.errorCount || 0;
 
-            // --- NerdQAxe Specific: Effective Error Rate ---
-            // NerdQAxe doesn't report HW errors. We calculate "effective" error rate based on missing hashrate.
-            // Rule: 2.01 GH/MHz per chip (BM1370)
-            if (state.deviceType === 'NerdQAxe') {
-                const chipCount = data.asicCount || 1;
-                const expectedHash = (state.currentFreq * chipCount * 2.01);
-                if (expectedHash > 0) {
-                    const effectiveErrorRate = 1.0 - (hashrate / expectedHash);
-                    // If effective error rate is significant (> 1%), use it as the error metric
-                    // We only use this if it's POSITIVE (hashrate < expected). 
-                    // If hashrate > expected (lucky), error rate is 0.
-                    if (effectiveErrorRate > 0.01) {
-                        // We interpret this as "percentage of work not resulting in hashrate", akin to HW errors.
-                        // We map this 0-1 range to an error count equivalent for logging, or just use the rate directly.
-                        // The logic below uses `smoothErrorRate`.
-                        // We can override the *reported* error rate usage in the smoothing function or just override the result.
-                    }
-                }
-            }
-
             // Calculate HW Error Rate (Delta)
             let hwErrorDelta = 0;
             if (currentHWErrorCount < state.lastErrorCount) {
@@ -102,15 +82,32 @@ class AutoTuneEngine {
             }
 
             // Calculate Error Rate (HW Errors / Expected Shares or just Time)
-            // For Gamma, we use errorPercentage from API if available, else calc
-            let currentErrorRate = data.errorPercentage !== undefined ? data.errorPercentage / 100 : 0;
+            // For most devices, we want to IGNORE share-based error rate (pool rejects) for tuning purposes.
+            // We only care about HW stability. 
+            // - NerdQAxe uses effective hashrate deviation (calculated below).
+            // - Other devices rely on `hwErrorDelta` which is checked separately in the tuning logic.
+            // Therefore, default currentErrorRate to 0 to avoid false positives from pool rejects.
+            let currentErrorRate = 0;
+
+            // If a specific device reports a reliable HW-based error % in the API, we use it here.
+            // USER CONFIRMED: This applies to ALL devices EXCEPT NerdQAxe (which needs calculated rate).
+            if (state.deviceType !== 'NerdQAxe' && data.errorPercentage !== undefined) {
+                currentErrorRate = data.errorPercentage / 100;
+            }
+
+            // Override with NerdQAxe calculated rate if applicable
 
             // Override with NerdQAxe calculated rate if applicable
             if (state.deviceType === 'NerdQAxe') {
                 const chipCount = data.asicCount || 1;
                 const expectedHash = (state.currentFreq * chipCount * 2.01);
                 if (expectedHash > 0) {
-                    const effectiveErrorRate = Math.max(0, 1.0 - (hashrate / expectedHash));
+                    // Add 2% tolerance buffer. If we are within 2% of expected, count as 0% error.
+                    // This prevents aggressive mode (1% limit) from throttling a 99% performer.
+                    const tolerance = 0.02;
+                    const rawErrorRate = 1.0 - (hashrate / expectedHash);
+                    const effectiveErrorRate = Math.max(0, rawErrorRate - tolerance);
+
                     // use effective rate if significant, essentially treating missing hashrate as errors
                     currentErrorRate = effectiveErrorRate;
                 }

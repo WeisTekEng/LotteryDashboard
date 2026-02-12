@@ -50,10 +50,11 @@ class FaultDetector {
         }
 
         // C. VR Temperature Check (Soft Fault)
-        const isVrTooHot = vrTemp > 0 && vrTemp >= (config.vrTempLimit || 85);
+        const isVrTooHot = vrTemp > 0 && vrTemp >= (config.maxVrTemp || 85);
 
         // D. Power Limit Check (Soft Fault)
-        const isPowerTooHigh = power > 0 && power >= (config.powerLimit || 999);
+        // Note: config.maxWatts is the correct property name in config.js
+        const isPowerTooHigh = power > 0 && power >= (config.maxWatts || 999);
 
         // E. Fallback Fault Inference (Generic)
         const isUnderperforming = expectedHashrate > 100 && hashrate < (expectedHashrate * 0.05);

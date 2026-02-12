@@ -123,6 +123,7 @@ function updateCardHTML(miner) {
                     <div class="stat-item">
                         <span class="stat-label">Error Rate</span>
                         <span class="stat-value">${(() => {
+            if (miner.autoTuneErrorRate != null) return `${miner.autoTuneErrorRate}%`;
             if (miner.errorPercentage != null) return `${miner.errorPercentage}%`;
 
             const v = parseInt(miner.valid) || 0;

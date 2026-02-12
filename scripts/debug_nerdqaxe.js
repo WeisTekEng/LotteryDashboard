@@ -21,9 +21,12 @@ async function runDebug() {
         }
 
         const data = await resp.json();
+        const sanitizedData = { ...data };
+        const sensitiveKeys = ['ssid', 'wifiStatus', 'wifiRSSI', 'macAddr', 'stratumUser', 'fallbackStratumUser', 'wifiPassword'];
+        sensitiveKeys.forEach(k => { if (sanitizedData[k]) sanitizedData[k] = '***'; });
 
-        // Write raw data to file
-        fs.writeFileSync(outputFile, JSON.stringify(data, null, 2));
+        // Write sanitized data to file
+        fs.writeFileSync(outputFile, JSON.stringify(sanitizedData, null, 2));
         console.log(`[Success] Data saved.`);
 
         // --- Analysis ---

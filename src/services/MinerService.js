@@ -65,6 +65,7 @@ class MinerService {
                 rejected: parseInt(data.sharesRejected) || parseInt(data.rejected) || 0,
                 hwErrors: data.hashrateMonitor?.asics?.[0]?.errorCount || 0,
                 errorPercentage: data.errorPercentage ? parseFloat(data.errorPercentage).toFixed(2) : null,
+                autoTuneErrorRate: autoTuneEntry ? (autoTuneEntry.errorRate * 100).toFixed(2) : null,
                 bestDiff: data.bestDiff,
                 bestSessionDiff: data.bestSessionDiff,
                 pool: data.isUsingFallbackStratum ? data.fallbackStratumURL : data.stratumURL,
