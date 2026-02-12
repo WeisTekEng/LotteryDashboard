@@ -58,6 +58,13 @@ class AutoTuneEngine {
 
         if (now - state.lastAdjustment < config.adjustInterval) return;
 
+        // Reset adaptive limits if mode changed
+        if (state.lastMode && state.lastMode !== state.mode) {
+            console.log(`[AutoTune] ${ip}: Mode changed from ${state.lastMode} to ${state.mode}. Resetting limits.`);
+            state.adaptiveLimits = null;
+        }
+        state.lastMode = state.mode;
+
         try {
             // Fetch miner data
             const resp = await fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
@@ -381,7 +388,6 @@ class AutoTuneEngine {
                 if (isVrTooHot) softReasons.push(`VR_HOT(${vrTemp}C)`);
                 if (isPowerTooHigh) softReasons.push(`POWER_LIMIT(${power}W)`);
 
-                newFreq = Math.max(config.minFreq, state.currentFreq - config.freqStep * 2);
                 if (newFreq === config.minFreq) {
                     newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
                 }
@@ -445,37 +451,176 @@ class AutoTuneEngine {
             }
             // === PRIORITY 7-10: OPTIMIZATION ===
             else if (avgTemp < config.tempTarget) {
-                // If we are significantly below voltage cap, push voltage first for stability
-                // ... (Original logic continues ...)
-                // To keep this message short, I assume the rest of the optimization logic remains effectively same structure.
+                // Use per-unit adaptive limits if they exist (Restored legacy logic)
+                state.adaptiveLimits = state.adaptiveLimits || {
+                    maxVoltage: freqVoltageCap,
+                    maxFreq: config.maxFreq,
+                    faultHistory: []
+                };
+                const effectiveMaxVoltage = state.adaptiveLimits.maxVoltage;
+                const effectiveMaxFreq = state.adaptiveLimits.maxFreq;
 
-                // Re-implementing simplified optimization logic for brevity and correctness
-                if (state.stableCycleCount > (config.stableCyclesRequired || 3) && !isStabilizing) {
-                    // Check PLL recommended voltage
-                    const recommendedV = this.getRecommendedVoltage(state.currentFreq + config.freqStep, state.asicModel, state.deviceType);
+                // Cost Headroom Check
+                const hasCostHeadroom = !isCostSensitive || !state.dailyCostLimit || currentDailyCost < state.dailyCostLimit;
 
-                    if (recommendedV && state.currentVoltage >= recommendedV && state.currentFreq < config.maxFreq) {
-                        newFreq = Math.min(config.maxFreq, state.currentFreq + config.freqStep);
-                        action = 'increase_freq_aggressive';
-                    } else if (state.currentVoltage < freqVoltageCap) {
-                        newVoltage = Math.min(freqVoltageCap, state.currentVoltage + config.voltageStep);
-                        action = 'increase_voltage_aggressive';
-                    } else {
-                        // Voltage capped, try careful freq bump
-                        if (state.currentFreq < config.maxFreq) {
-                            newFreq = Math.min(config.maxFreq, state.currentFreq + config.freqStep);
-                            action = 'increase_freq_capped';
+                const hasFreqHeadroom = newFreq < effectiveMaxFreq && hasCostHeadroom;
+                const hasVoltageHeadroom = newVoltage < effectiveMaxVoltage && hasCostHeadroom;
+                const isVeryStable = (state.stableCycleCount || 0) >= 10 && smoothErrorRate < 0.01;
+                const isStable = (state.stableCycleCount || 0) >= 5 && smoothErrorRate < 0.02;
+
+                // Priority 10: Voltage pullback
+                // If we are at max voltage/freq and stable, try to back off voltage to save power/heat
+                if (newVoltage === effectiveMaxVoltage && isVeryStable && !hasFreqHeadroom) {
+                    newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                    action = 'voltage_pullback_optimization';
+                    state.stableCycleCount = 0;
+                }
+                // Priority 8: Efficiency tuning
+                else if (efficiency !== null && efficiency > config.targetEfficiency + 0.5) {
+                    newFreq = Math.max(config.minFreq, newFreq - config.freqStep);
+                    if (newFreq === config.minFreq) {
+                        newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                    }
+                    action = 'tune_for_efficiency';
+                    state.stableCycleCount = 0;
+                }
+                // Priority 9: Efficiency headroom
+                else if (efficiency !== null && efficiency < config.targetEfficiency - 0.5 && hasFreqHeadroom) {
+                    newFreq = Math.min(effectiveMaxFreq, newFreq + config.freqStep);
+
+                    // NEW: Use PLL curve to set optimal voltage for new frequency
+                    if (state.asicModel) {
+                        const currentBaseV = this.getRecommendedVoltage(state.currentFreq, state.asicModel, state.deviceType);
+                        const newBaseV = this.getRecommendedVoltage(newFreq, state.asicModel, state.deviceType);
+
+                        if (currentBaseV !== null && newBaseV !== null) {
+                            // Calculate offset from the curve at current frequency
+                            const offset = state.currentVoltage - currentBaseV;
+                            // Apply offset to the new base voltage
+                            let targetV = newBaseV + offset;
+                            // Clamp to safe limits
+                            targetV = Math.max(config.minVoltage, Math.min(effectiveMaxVoltage, targetV));
+
+                            if (targetV > newVoltage) {
+                                newVoltage = targetV;
+                                action = 'increase_freq_with_pll_offset';
+                                console.log(`[AutoTune] ${ip}: PLL+Offset suggests ${targetV}mV (Base ${newBaseV} + ${offset}) for ${newFreq}MHz`);
+                            } else {
+                                action = 'increase_freq_efficiency';
+                            }
+                        } else if (newBaseV && newBaseV > newVoltage) {
+                            // Fallback to standard PLL if current base missing
+                            newVoltage = Math.min(effectiveMaxVoltage, newBaseV);
+                            action = 'increase_freq_with_pll';
+                            console.log(`[AutoTune] ${ip}: PLL suggests ${newBaseV}mV for ${newFreq}MHz`);
+                        } else {
+                            action = 'increase_freq_efficiency';
                         }
+                    } else {
+                        action = 'increase_freq_efficiency';
                     }
                     state.stableCycleCount = 0;
-                } else {
-                    state.stableCycleCount = (state.stableCycleCount || 0) + 1;
-                    action = 'stabilizing';
                 }
-            } else {
-                // At target temp
-                state.stableCycleCount = (state.stableCycleCount || 0) + 1;
-                action = 'maintain_at_target';
+                // Priority 7: Main optimization path - frequency increase
+                else if (hasFreqHeadroom) {
+                    const recentThrottle = ['instability_throttle_freq', 'instability_revert_optimization'].includes(state.lastAction);
+                    const cooldownNeeded = recentThrottle ? 5 : 2;
+                    const tempMargin = config.tempTarget - avgTemp;
+
+                    if (isStable && (state.stableCycleCount >= cooldownNeeded) && tempMargin > 3) {
+                        const isApproachingTarget = tempMargin < 5;
+
+                        // Adaptive Frequency Steps
+                        const distToMax = effectiveMaxFreq - state.currentFreq;
+                        let adaptiveStep = config.freqStep;
+
+                        if (distToMax > 100) adaptiveStep = config.freqStep * 4;      // e.g. +40MHz
+                        else if (distToMax > 50) adaptiveStep = config.freqStep * 2;  // e.g. +20MHz
+
+                        let freqIncrease = isApproachingTarget ? config.freqStep : adaptiveStep;
+
+                        // Ensure we don't overshoot
+                        if (freqIncrease > distToMax) freqIncrease = distToMax;
+
+                        // Enforce minimum step if not at limit
+                        if (freqIncrease < config.freqStep && distToMax >= config.freqStep) freqIncrease = config.freqStep;
+
+                        newFreq = Math.min(effectiveMaxFreq, newFreq + freqIncrease);
+
+                        // NEW: Use PLL curve to set optimal voltage for new frequency
+                        if (state.asicModel) {
+                            const currentBaseV = this.getRecommendedVoltage(state.currentFreq, state.asicModel, state.deviceType);
+                            const newBaseV = this.getRecommendedVoltage(newFreq, state.asicModel, state.deviceType);
+
+                            if (currentBaseV !== null && newBaseV !== null) {
+                                // Calculate offset from the curve at current frequency
+                                const offset = state.currentVoltage - currentBaseV;
+                                // Apply offset to the new base voltage
+                                let targetV = newBaseV + offset;
+                                // Clamp to safe limits
+                                targetV = Math.max(config.minVoltage, Math.min(effectiveMaxVoltage, targetV));
+
+                                if (targetV > newVoltage) {
+                                    newVoltage = targetV;
+                                    action = 'increase_freq_with_pll_offset';
+                                    console.log(`[AutoTune] ${ip}: PLL+Offset suggests ${targetV}mV (Base ${newBaseV} + ${offset}) for ${newFreq}MHz`);
+                                } else {
+                                    action = 'increase_freq';
+                                    // Try reducing voltage if very stable and PLL says we can (and targetV is lower)
+                                    // Using targetV here respects the offset logic even for reduction
+                                    if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable && targetV < newVoltage) {
+                                        newVoltage = Math.max(config.minVoltage, targetV);
+                                        action = 'increase_freq_reduce_voltage_pll';
+                                    }
+                                }
+                            } else if (newBaseV) {
+                                // Fallback logic if current base is missing
+                                if (newBaseV > newVoltage) {
+                                    newVoltage = Math.min(effectiveMaxVoltage, newBaseV);
+                                    action = 'increase_freq_with_pll';
+                                    console.log(`[AutoTune] ${ip}: PLL suggests ${newBaseV}mV for ${newFreq}MHz`);
+                                } else {
+                                    action = 'increase_freq';
+                                    if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable && newBaseV < newVoltage) {
+                                        newVoltage = Math.max(config.minVoltage, newBaseV);
+                                        action = 'increase_freq_reduce_voltage_pll';
+                                    }
+                                }
+                            } else {
+                                // No PLL data
+                                action = 'increase_freq';
+                                if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable) {
+                                    newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                                    action = 'increase_freq_reduce_voltage';
+                                }
+                            }
+                        } else {
+                            // No PLL data, use existing logic
+                            action = 'increase_freq';
+                            if (newVoltage > config.minVoltage + (config.voltageStep * 3) && isVeryStable) {
+                                newVoltage = Math.max(config.minVoltage, newVoltage - config.voltageStep);
+                                action = 'increase_freq_reduce_voltage';
+                            }
+                        }
+                        state.stableCycleCount = 0;
+                    } else if (isVeryStable && state.currentVoltage > config.minVoltage + (config.voltageStep * 3)) {
+                        // Thermal Wall: Temp is tight (< 1.0 margin), so we reduce voltage to cool down and allow future boost
+                        newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                        action = 'optimize_voltage_thermal';
+                        state.stableCycleCount = 0;
+                    } else {
+                        action = 'maintain';
+                    }
+                }
+                else if (isVeryStable && state.currentVoltage > config.minVoltage + (config.voltageStep * 3)) {
+                    // Max Frequency Reached (or Cost Limit) -> Optimize Efficiency
+                    newVoltage = Math.max(config.minVoltage, state.currentVoltage - config.voltageStep);
+                    action = 'optimize_voltage_max_freq';
+                    state.stableCycleCount = 0;
+                }
+                else {
+                    action = 'maintain';
+                }
             }
 
 
