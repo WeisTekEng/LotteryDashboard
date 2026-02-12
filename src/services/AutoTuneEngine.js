@@ -121,6 +121,13 @@ class AutoTuneEngine {
             }
 
             // Smooth the error rate
+            const smoothFactors = { aggressive: 0.1, cost_sensitive: 0.05, conservative: 0.02 };
+            const alpha = smoothFactors[state.mode] || 0.05;
+            // Initialize if needed
+            if (state.errorRate === undefined) state.errorRate = currentErrorRate;
+            state.errorRate = (alpha * currentErrorRate) + ((1 - alpha) * state.errorRate);
+            const smoothErrorRate = state.errorRate;
+
             const vrTemp = parseFloat(data.vrTemp) || 0;
             const inputVolts = parseFloat(data.voltage) || 0;
 
