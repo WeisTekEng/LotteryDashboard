@@ -385,5 +385,11 @@ Found this useful? Tips are never required but appreciated!
 - Voltage: 2× voltageStep (20-30mV below fault point)
 - Frequency: 3× freqStep (30MHz below fault point)
 - Confirmation: 3 consecutive fault cycles required
-
+---
+---
+| Todo | Description | Status | type | Priority | Done |
+|------|-------------|--------|------|----------|------|
+| combine miner page with autotune monitor page | miner page should show autotune monitor data | in progress | feature | high | no |
+| Cleanup miner page | miner page should be cleaned up | in progress | feature | medium | no |
+| Add more coins / tokens | add more coins / tokens | in progress | feature | medium | no |
 ---

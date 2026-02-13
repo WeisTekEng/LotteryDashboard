@@ -1,22 +1,26 @@
 
 // Socket Events
 
+// Initialize miners
 socket.on('init_miners', (data) => {
     Object.assign(miners, data);
     render();
 });
 
+// Miner update
 socket.on('miner_update', (data) => {
     const key = data.id || data.ip;
     miners[key] = data;
     render();
 });
 
+// Remove miner
 socket.on('miner_remove', (id) => {
     delete miners[id];
     render();
 });
 
+// Bitcoin stats
 socket.on('bitcoin_stats', (data) => {
     document.getElementById('bitcoin-card').style.display = 'block';
     const btcPriceEl = document.getElementById('btc-price');
@@ -49,6 +53,7 @@ socket.on('bitcoin_stats', (data) => {
     updateLuckStats();
 });
 
+// Bitcoin Cash stats
 socket.on('bch_stats', (data) => {
     bchStats = data;
     const card = document.getElementById('bch-card');
@@ -74,11 +79,13 @@ socket.on('bch_stats', (data) => {
     }
 });
 
+// Initialize history
 socket.on('init_history', (history) => {
     updateGraph(history);
     updateRollingAverages();
 });
 
+// History update
 socket.on('history_update', (point) => {
     hashrateChart.data.labels.push(new Date(point.timestamp).toLocaleTimeString());
     const btcVal = (point.btc !== undefined) ? point.btc : (point.hashrate || 0);
@@ -104,6 +111,7 @@ socket.on('history_update', (point) => {
     updateRollingAverages();
 });
 
+// Initialize logs
 socket.on('init_logs', (logs) => {
     const container = document.getElementById('log-container');
     if (container) {
@@ -112,6 +120,7 @@ socket.on('init_logs', (logs) => {
     }
 });
 
+// Log entry
 socket.on('log_entry', (log) => {
     appendLog(log);
 });

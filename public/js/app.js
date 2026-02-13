@@ -94,6 +94,7 @@ function closeAddModal() {
     if (addModal) addModal.classList.remove('active');
 }
 
+// Manual add miner button - adds miner to the dashboard and starts monitoring it
 async function addMiner() {
     const ip = document.getElementById('addDeviceIp').value;
     const name = document.getElementById('addDeviceName').value;
@@ -144,6 +145,7 @@ function copyBtcAddress() {
     });
 }
 
+// Update miner coin - updates the coin of a miner
 async function updateMinerCoin(ip, coin) {
     try {
         await fetch(`/miners/${ip}/metadata`, {

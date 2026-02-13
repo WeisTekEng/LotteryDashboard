@@ -143,7 +143,14 @@ function renderHistoryTable(log) {
             <td style="padding: 8px;">${e.action}</td>
             <td style="padding: 8px;">${e.voltage}mV</td>
             <td style="padding: 8px;">${e.freq}MHz</td>
+            <td style="padding: 8px;">${e.power}W</td>
             <td style="padding: 8px; color: #10b981;">${e.hashrate}</td>
+            <td style="padding: 8px;">${e.vin}mV</td>
+            <td style="padding: 8px;">${e.jth}</td>
+            <td style="padding: 8px;">${e.coreTemp}°C</td>
+            <td style="padding: 8px;">${e.vrmTemp}°C</td>
+            <td style="padding: 8px;">${e.errorRate}%</td>
+            
         </tr>
     `).join('');
 }
@@ -163,6 +170,13 @@ function renderFaultHistory(faultHistory) {
             <td style="padding: 8px; color: #ef4444;">${f.reason}</td>
             <td style="padding: 8px;">${f.voltage || '-'}mV</td>
             <td style="padding: 8px;">${f.freq || '-'}MHz</td>
+            <td style="padding: 8px;">${f.power || '-'}W</td>
+            <td style="padding: 8px;">${f.hashrate || '-'}GH/s</td>
+            <td style="padding: 8px;">${f.vin || '-'}mV</td>
+            <td style="padding: 8px;">${f.jth || '-'}</td>
+            <td style="padding: 8px;">${f.coreTemp || '-'}°C</td>
+            <td style="padding: 8px;">${f.vrmTemp || '-'}°C</td>
+            <td style="padding: 8px;">${f.errorRate || '-'}%</td>
             <td style="padding: 8px;">${f.limitsAdapted ? '<span style="color: #f59e0b;">Yes</span>' : '<span style="color: #64748b;">No</span>'}</td>
         </tr>
     `).join('');

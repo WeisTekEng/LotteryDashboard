@@ -66,9 +66,29 @@ class AutoTuneEngine {
         state.lastMode = state.mode;
 
         try {
-            // Fetch miner data
-            const resp = await fetch(`http://${ip}/api/system/info`, { signal: AbortSignal.timeout(3000) });
-            if (!resp.ok) return;
+            // Fetch miner data with exponential backoff
+            let resp = null;
+            let lastError = null;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const timeout = 3000 * Math.pow(2, attempt);
+                    resp = await fetch(`http://${ip}/api/system/info`, {
+                        signal: AbortSignal.timeout(timeout)
+                    });
+                    if (resp.ok) break;
+                } catch (e) {
+                    lastError = e;
+                    if (attempt < 2) {
+                        const backoff = 1000 * Math.pow(2, attempt);
+                        await new Promise(r => setTimeout(r, backoff));
+                    }
+                }
+            }
+
+            if (!resp || !resp.ok) {
+                console.warn(`[AutoTune] ${ip}: Failed to fetch info after retries: ${lastError?.message || 'Unknown Error'}`);
+                return;
+            }
 
             const data = await resp.json();
             const temp = parseFloat(data.temp);

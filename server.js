@@ -11,6 +11,7 @@ const ScannerService = require('./src/services/ScannerService');
 const AutoTuneEngine = require('./src/services/AutoTuneEngine');
 const LogService = require('./src/services/LogService');
 
+// Create Express app
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -18,11 +19,12 @@ const logService = new LogService(io);
 const udpSocket = dgram.createSocket('udp4');
 
 // Initialization
-const autoTuneStates = StorageService.loadAutoTuneState();
-const minerService = new MinerService(io, autoTuneStates);
-const scannerService = new ScannerService(minerService);
-const autoTuneEngine = new AutoTuneEngine(autoTuneStates);
+const autoTuneStates = StorageService.loadAutoTuneState();  // load auto-tune states from storage
+const minerService = new MinerService(io, autoTuneStates);  // create miner service
+const scannerService = new ScannerService(minerService);    // create scanner service
+const autoTuneEngine = new AutoTuneEngine(autoTuneStates);  // create auto-tune engine
 
+// Set view engine
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -31,6 +33,7 @@ app.use(express.json());
 const fs = require('fs');
 const { execSync } = require('child_process');
 
+// Render index page
 app.get('/', (req, res) => {
   let version = 'Unknown';
   let gitBranch = 'Unknown';
@@ -128,6 +131,7 @@ app.get('/miners/:ip/config', async (req, res) => {
   }
 });
 
+// Proxy config post
 app.post('/miners/:ip/config', async (req, res) => {
   try {
     const { ip } = req.params;
@@ -158,6 +162,7 @@ app.post('/miners/add', (req, res) => {
   res.json({ success: true });
 });
 
+// Miner metadata
 app.post('/miners/:ip/metadata', (req, res) => {
   const { ip } = req.params;
   const { coin, fallbackCoin, autoTune } = req.body;
