@@ -255,20 +255,7 @@ class AutoTuneEngine {
                 state.gridHistory[gridKey] = existing;
             }
 
-            state.tuningLog.push({
-                timestamp: now,
-                voltage: state.currentVoltage,
-                freq: state.currentFreq,
-                hashrate: hashrate,
-                power: power,
-                temp: avgTemp, // Use smoothed temp
-                errorRate: smoothErrorRate,
-                action: state.lastAction || 'maintain' // Log the action that RESULTED in this state (approx) or current
-            });
-            // Limit log size (10000 entries ~ 24h+ depending on interval)
-            if (state.tuningLog.length > 10000) {
-                state.tuningLog.shift();
-            }
+
 
 
             // NEW: Detect ASIC model and device type (once)
@@ -362,6 +349,13 @@ class AutoTuneEngine {
                         voltage: faultVoltage,
                         freq: faultFreq,
                         reason: reasons.join(', '),
+                        power: power,
+                        hashrate: hashrate,
+                        vin: inputVolts,
+                        jth: efficiency ? efficiency.toFixed(2) : null,
+                        coreTemp: temp,
+                        vrmTemp: vrTemp,
+                        errorRate: (smoothErrorRate * 100).toFixed(2),
                         newLimits: {
                             maxVoltage: state.adaptiveLimits.maxVoltage,
                             maxFreq: state.adaptiveLimits.maxFreq
@@ -745,6 +739,29 @@ class AutoTuneEngine {
 
             state.lastShares = { valid: sharesAccepted, invalid: sharesRejected };
             state.lastErrorCount = currentHWErrorCount;
+
+            // Log final state to tuning history
+            const finalEfficiency = (hashrate > 0 && power > 0) ? (power / (hashrate / 1000)) : null;
+            state.tuningLog = state.tuningLog || [];
+            state.tuningLog.push({
+                timestamp: now,
+                voltage: state.currentVoltage,
+                freq: state.currentFreq,
+                hashrate: hashrate,
+                power: power,
+                vin: inputVolts,
+                jth: finalEfficiency ? finalEfficiency.toFixed(2) : null,
+                coreTemp: temp,
+                vrmTemp: vrTemp,
+                errorRate: (smoothErrorRate * 100).toFixed(4),
+                action: action || state.lastAction || 'maintain'
+            });
+
+            // Limit log size (10000 entries ~ 24h+ depending on interval)
+            if (state.tuningLog.length > 10000) {
+                state.tuningLog.shift();
+            }
+
             StorageService.saveAutoTuneState(this.autoTuneStates);
 
         } catch (e) {
