@@ -420,18 +420,25 @@ app.get('/api/autotune/:ip/export', (req, res) => {
   const log = state.tuningLog;
 
   // CSV Header
-  let csv = 'Timestamp,Action,Voltage(mV),Frequency(MHz),Hashrate(GH/s),Power(W),Efficiency(J/TH),Temp(C),ErrorRate(%)\n';
+  let csv = 'Timestamp,Action,Voltage(mV),Frequency(MHz),Hashrate(GH/s),Power(W),Vin(mV),J/TH,CoreTemp(C),VrmTemp(C),ErrorRate(%)\n';
 
   // CSV Rows
   log.forEach(row => {
     const time = new Date(row.timestamp).toISOString();
-    const eff = (row.power && row.hashrate) ? (row.power / (row.hashrate / 1000)).toFixed(2) : '';
-    const err = (row.errorRate * 100).toFixed(2);
 
-    // Handle potential commas in action string by quoting
+    // Use pre-formatted strings from new logs, or fall back to calculation for old logs
     const action = `"${row.action || ''}"`;
+    const volt = row.voltage || '';
+    const freq = row.freq || '';
+    const hash = row.hashrate || '';
+    const power = row.power || '';
+    const vin = row.vin || '';
+    const jth = row.jth || ((row.power && row.hashrate) ? (row.power / (row.hashrate / 1000)).toFixed(2) : '');
+    const core = row.coreTemp || row.temp || '';
+    const vrm = row.vrmTemp || '';
+    const err = row.errorRate || (row.errorRate !== undefined ? (row.errorRate * 100).toFixed(2) : '');
 
-    csv += `${time},${action},${row.voltage},${row.freq},${row.hashrate},${row.power || ''},${eff},${row.temp || ''},${err}\n`;
+    csv += `${time},${action},${volt},${freq},${hash},${power},${vin},${jth},${core},${vrm},${err}\n`;
   });
 
   res.header('Content-Type', 'text/csv');
