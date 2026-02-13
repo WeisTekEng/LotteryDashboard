@@ -176,7 +176,8 @@ app.post('/miners/:ip/metadata', (req, res) => {
 
   if (autoTune !== undefined) {
     if (autoTune === 'off') {
-      autoTuneStates.delete(ip);
+      const state = autoTuneStates.get(ip);
+      if (state) state.enabled = false;
     } else {
       // Preserve existing state if present, or create new
       const existingState = autoTuneStates.get(ip) || {
