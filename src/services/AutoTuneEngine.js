@@ -745,14 +745,14 @@ class AutoTuneEngine {
             state.tuningLog = state.tuningLog || [];
             state.tuningLog.push({
                 timestamp: now,
-                voltage: state.currentVoltage,
+                voltage: state.currentVoltage.toFixed(2),
                 freq: state.currentFreq,
-                hashrate: hashrate,
-                power: power,
-                vin: inputVolts,
+                hashrate: hashrate.toFixed(4),
+                power: power.toFixed(4),
+                vin: inputVolts.toFixed(2),
                 jth: finalEfficiency ? finalEfficiency.toFixed(2) : null,
-                coreTemp: temp,
-                vrmTemp: vrTemp,
+                coreTemp: temp.toFixed(2),
+                vrmTemp: vrTemp.toFixed(2),
                 errorRate: (smoothErrorRate * 100).toFixed(4),
                 action: action || state.lastAction || 'maintain'
             });
