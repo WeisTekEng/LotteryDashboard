@@ -5,10 +5,27 @@ function createCard(key) {
     return div;
 }
 
+function getBtcPowLabDashboardUrl(pool, address) {
+    const poolHost = String(pool || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^stratum(?:\+tcp)?:\/\//, '')
+        .split('/')[0]
+        .split(':')[0];
+    const wallet = String(address || '').trim().split('.')[0];
+
+    if (poolHost !== 'stratum.btcpowlab-pool.com' || !wallet) {
+        return '';
+    }
+
+    return `https://btcpowlab-pool.com/miner/${encodeURIComponent(wallet)}`;
+}
+
 function updateCardHTML(miner) {
     const tempClass = parseFloat(miner.temp) > 70 ? 'temp-high' : '';
     const displayName = (miner.miner && miner.miner !== 'Unknown') ? miner.miner : (miner.id || 'Unknown');
     const hashrateDisplay = formatHashrate(miner.hashrate);
+    const poolDashboardUrl = getBtcPowLabDashboardUrl(miner.pool, miner.address);
 
     let actionBtn;
     const isBCH = miner.coin === 'BCH';
@@ -104,6 +121,7 @@ function updateCardHTML(miner) {
                 <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                     <div style="font-size: 0.8rem; color: #94a3b8;">Pool: <span style="color: #f8fafc;">${miner.pool || 'Unknown'}</span> ${miner.usingFallback ? '<span style="color: #ef4444; font-weight: bold; font-size: 0.7rem;">(Fallback)</span>' : ''}</div>
                     ${miner.address ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">Addr: <span style="color: #f8fafc; font-family: monospace;">...${miner.address.split('.')[0].slice(-8)}</span></div>` : ''}
+                    ${poolDashboardUrl ? `<div style="margin-top: 0.5rem;"><a href="${poolDashboardUrl}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.8rem; text-decoration: none;">Open pool dashboard</a></div>` : ''}
                     ${(miner.miner && miner.miner !== 'Unknown') ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">ID: <span style="font-family: monospace;">${miner.id}</span></div>` : ''}
                     ${miner.chipInfo ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">Chip: <span style="color: #10b981;">${miner.chipInfo}</span></div>` : ''}
                 </div>
